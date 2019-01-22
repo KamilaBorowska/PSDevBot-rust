@@ -9,7 +9,7 @@ futures-preview = { version = "0.3.0-alpha.12", features = ["compat"] }
 htmlescape = "0.3.1"
 serde = "1.0.85"
 serde_derive = "1.0.85"
-showdown = "0.1.4"
+showdown = "0.1.5"
 tokio = { version = "0.1.14", features = ["async-await-preview"] }
 warp = "0.1.11"
 warp_github_webhook = "0.1.0"
