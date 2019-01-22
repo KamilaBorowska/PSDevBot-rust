@@ -1,31 +1,25 @@
 #![feature(async_await, await_macro, futures_api)]
 #![recursion_limit = "128"]
 
-use bytes::Buf;
 use futures::prelude::*;
-use hmac::{Hmac, Mac};
 use htmlescape::encode_minimal as h;
-use serde::Deserialize;
 use serde_derive::Deserialize;
-use sha1::Sha1;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect, RoomId, Sender};
 use std::env;
 use std::error::Error;
 use tokio::await;
-use warp::body::FullBody;
-use warp::{path, Filter, Rejection};
+use warp::{self, path, Filter};
+use warp_github_webhook::{webhook, PUSH};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    tokio::run(
+    tokio::run_async(
         start(
             env::var("PSDEVBOT_USER")?,
             env::var("PSDEVBOT_PASSWORD")?,
             env::var("PSDEVBOT_SECRET")?,
         )
-        .map_err(|e| panic!(e))
-        .boxed()
-        .compat(),
+        .map(|e| e.unwrap()),
     );
     Ok(())
 }
@@ -38,9 +32,7 @@ async fn start(
     let (mut sender, mut receiver) = await!(connect("showdown"))?;
     let route_sender = sender.clone();
     let route = path!("github" / "callback")
-        .and(warp::post2())
-        .and(warp::header::exact("X-GitHub-Event", "push"))
-        .and(webhook(secret))
+        .and(webhook(PUSH, secret))
         .and_then(move |push_event| {
             handle_push_event(route_sender.clone(), push_event)
                 .boxed()
@@ -67,29 +59,6 @@ async fn handle_push_event(
 ) -> Result<&'static str, warp::Rejection> {
     await!(sender.send_chat_message(RoomId("botdevelopment"), &push_event.get_message())).unwrap();
     Ok("")
-}
-
-fn webhook<T>(secret: String) -> impl Clone + Filter<Extract = (T,), Error = Rejection>
-where
-    T: Send + for<'de> Deserialize<'de>,
-{
-    warp::header("X-Hub-Signature")
-        .and(warp::body::concat())
-        .and_then(move |signature: String, body: FullBody| {
-            let start = "sha1=";
-            if !signature.starts_with(start) {
-                return Err(warp::reject::custom("Unexpected algorithm"));
-            }
-            let signature = hex::decode(&signature[start.len()..])
-                .map_err(|_| warp::reject::custom("Couldn't decode hex string"))?;
-            let json: Vec<u8> = body.collect();
-            let mut mac = Hmac::<Sha1>::new_varkey(secret.as_bytes()).unwrap();
-            mac.input(&json);
-            mac.verify(&signature)
-                .map_err(|_| warp::reject::custom("Invalid HMAC signature"))?;
-            serde_json::from_slice(&json)
-                .map_err(|_| warp::reject::custom("Couldn't deserialize the JSON"))
-        })
 }
 
 #[derive(Debug, Deserialize)]
