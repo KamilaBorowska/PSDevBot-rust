@@ -875,11 +875,12 @@ dependencies = [
 name = "psdevbot-rust"
 version = "0.1.0"
 dependencies = [
+ "futures 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-preview 0.3.0-alpha.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "htmlescape 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
- "showdown 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "showdown 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.1.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "warp 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "warp_github_webhook 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1165,7 +1166,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "showdown"
-version = "0.1.5"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1782,7 +1783,7 @@ dependencies = [
 "checksum serde_urlencoded 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "d48f9f99cd749a2de71d29da5f948de7f2764cc5a9d7f3c97e3514d4ee6eabf2"
 "checksum sha-1 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "23962131a91661d643c98940b20fcaffe62d776a823247be80a48fcb8b6fce68"
 "checksum sha1 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
-"checksum showdown 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "b0c3c8b622ada091edc29966b8ddb2bfa52f5d226cd0ab249658edec97b5d9d9"
+"checksum showdown 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c77e0a43d35a26efbf5aeb2b858cca6dfc857445f81c3c72331189e47515cfa0"
 "checksum siphasher 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0b8de496cf83d4ed58b6be86c3a275b8602f6ffe98d3024a869e124147a9a3ac"
 "checksum slab 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 "checksum smallvec 0.6.7 (registry+https://github.com/rust-lang/crates.io-index)" = "b73ea3738b47563803ef814925e69be00799a8c07420be8b996f8e98fb2336db"

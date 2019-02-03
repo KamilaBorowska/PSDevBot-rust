@@ -1,14 +1,17 @@
 #![feature(async_await, await_macro, futures_api)]
 #![recursion_limit = "128"]
 
-use futures::prelude::*;
+mod unbounded;
+
+use futures03::prelude::*;
 use htmlescape::encode_minimal as h;
 use serde_derive::Deserialize;
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect, RoomId, Sender};
+use showdown::{connect, RoomId};
 use std::env;
 use std::error::Error;
 use tokio::await;
+use unbounded::UnboundedSender;
 use warp::{self, path, Filter};
 use warp_github_webhook::{webhook, PUSH};
 
@@ -30,6 +33,14 @@ async fn start(
     secret: String,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let (mut sender, mut receiver) = await!(connect("showdown"))?;
+    loop {
+        let message = await!(receiver.receive())?;
+        if let Kind::Challenge(ch) = message.parse().kind {
+            await!(ch.login_with_password(&mut sender, &login, &password))?;
+            break;
+        }
+    }
+    let mut sender = UnboundedSender::new(sender);
     let route_sender = sender.clone();
     let route = path!("github" / "callback")
         .and(webhook(PUSH, secret))
@@ -42,11 +53,9 @@ async fn start(
     loop {
         let message = await!(receiver.receive())?;
         let parsed = message.parse();
-        println!("{:?}", parsed);
         match parsed.kind {
-            Kind::Challenge(ch) => await!(ch.login_with_password(&mut sender, &login, &password))?,
             Kind::UpdateUser(UpdateUser { named: true, .. }) => {
-                await!(sender.send_global_command("join bot dev"))?;
+                sender.send_global_command("join bot dev")?;
             }
             _ => {}
         }
@@ -54,10 +63,12 @@ async fn start(
 }
 
 async fn handle_push_event(
-    mut sender: Sender,
+    mut sender: UnboundedSender,
     push_event: PushEvent,
 ) -> Result<&'static str, warp::Rejection> {
-    await!(sender.send_chat_message(RoomId("botdevelopment"), &push_event.get_message())).unwrap();
+    sender
+        .send_chat_message(RoomId("botdevelopment"), &push_event.get_message())
+        .map_err(warp::reject::custom)?;
     Ok("")
 }
 
