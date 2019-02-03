@@ -35,19 +35,20 @@ impl UnboundedSender {
         room_id: RoomId<'_>,
         message: &str,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        Ok(self.sender.unbounded_send(Message::ChatMessage(
+        self.sender.unbounded_send(Message::ChatMessage(
             room_id.0.to_string(),
             message.to_string(),
-        ))?)
+        ))?;
+        Ok(())
     }
 
     pub fn send_global_command(
         &mut self,
         command: &str,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        Ok(self
-            .sender
-            .unbounded_send(Message::GlobalCommand(command.to_string()))?)
+        self.sender
+            .unbounded_send(Message::GlobalCommand(command.to_string()))?;
+        Ok(())
     }
 }
 

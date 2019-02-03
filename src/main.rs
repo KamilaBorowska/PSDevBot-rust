@@ -52,12 +52,8 @@ async fn start(
     tokio::spawn(warp::serve(route).bind(([0, 0, 0, 0], 3030)));
     loop {
         let message = await!(receiver.receive())?;
-        let parsed = message.parse();
-        match parsed.kind {
-            Kind::UpdateUser(UpdateUser { named: true, .. }) => {
-                sender.send_global_command("join bot dev")?;
-            }
-            _ => {}
+        if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.parse().kind {
+            sender.send_global_command("join bot dev")?;
         }
     }
 }
