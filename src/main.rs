@@ -21,6 +21,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             env::var("PSDEVBOT_USER")?,
             env::var("PSDEVBOT_PASSWORD")?,
             env::var("PSDEVBOT_SECRET")?,
+            match env::var("PSDEVBOT_PORT") {
+                Ok(port) => port.parse()?,
+                Err(_) => 3030,
+            },
         )
         .map(|e| e.unwrap()),
     );
@@ -31,6 +35,7 @@ async fn start(
     login: String,
     password: String,
     secret: String,
+    port: u16,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let (mut sender, mut receiver) = await!(connect("showdown"))?;
     loop {
@@ -49,7 +54,7 @@ async fn start(
                 .boxed()
                 .compat()
         });
-    tokio::spawn(warp::serve(route).bind(([0, 0, 0, 0], 3030)));
+    tokio::spawn(warp::serve(route).bind(([0, 0, 0, 0], port)));
     loop {
         let message = await!(receiver.receive())?;
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.parse().kind {
