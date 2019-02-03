@@ -5,6 +5,8 @@ mod unbounded;
 
 use futures03::prelude::*;
 use htmlescape::encode_minimal as h;
+use lazy_static::lazy_static;
+use regex::{Captures, Regex};
 use serde_derive::Deserialize;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect, RoomId};
@@ -111,7 +113,7 @@ impl PushEvent {
             branch = h(self.get_branch()),
         );
         for commit in &self.commits {
-            output += &commit.format();
+            output += &commit.format(&self.repository.url);
         }
         output
     }
@@ -142,11 +144,18 @@ struct Commit {
 }
 
 impl Commit {
-    fn format(&self) -> String {
+    fn format(&self, url: &str) -> String {
         let (message, more) = match self.message.find('\n') {
             Some(index) => (&self.message[..index], true),
             None => (&self.message[..], false),
         };
+        let message = h(message);
+        lazy_static! {
+            static ref ISSUE_PATTERN: Regex = Regex::new(r#"#(\d+)"#).unwrap();
+        }
+        let message = ISSUE_PATTERN.replace_all(&message, |c: &Captures<'_>| {
+            format!("<a href='{}/issues/{}'>{}</a>", h(url), h(&c[1]), h(&c[0]))
+        });
         format!(
             concat!(
                 "<br /><a href=\"{url}\"><font color='606060'>{id}</font></a> ",
@@ -155,7 +164,7 @@ impl Commit {
             url = h(&self.url),
             id = &self.id[0..6],
             author = h(&self.author.name),
-            message = h(message),
+            message = message,
             more = if more { "..." } else { "" },
         )
     }
@@ -169,4 +178,5 @@ struct User {
 #[derive(Debug, Deserialize)]
 struct Repository {
     name: String,
+    url: String,
 }
