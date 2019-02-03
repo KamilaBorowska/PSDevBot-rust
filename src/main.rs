@@ -51,11 +51,7 @@ async fn start(
     let route_sender = sender.clone();
     let route = path!("github" / "callback")
         .and(webhook(PUSH, secret))
-        .and_then(move |push_event| {
-            handle_push_event(route_sender.clone(), push_event)
-                .boxed()
-                .compat()
-        });
+        .and_then(move |push_event| handle_push_event(route_sender.clone(), push_event));
     tokio::spawn(warp::serve(route).bind(([0, 0, 0, 0], port)));
     loop {
         let message = await!(receiver.receive())?;
@@ -66,7 +62,7 @@ async fn start(
     }
 }
 
-async fn handle_push_event(
+fn handle_push_event(
     mut sender: UnboundedSender,
     push_event: PushEvent,
 ) -> Result<&'static str, warp::Rejection> {
