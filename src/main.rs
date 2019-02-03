@@ -58,6 +58,7 @@ async fn start(
     loop {
         let message = await!(receiver.receive())?;
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.parse().kind {
+            sender.send_global_command("away")?;
             sender.send_global_command("join bot dev")?;
         }
     }
