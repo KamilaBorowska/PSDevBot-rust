@@ -95,7 +95,12 @@ impl PushEvent {
             "pushed"
         };
         let mut output = format!(
-            r#"/addhtmlbox [<font color='FF00FF'>{repo}</font>] <font color='909090'>{pusher}</font> {pushed} <a href="{compare}"><b>{commits}</b> new commit{s}</a> to <font color='800080'>{branch}</font>"#,
+            concat!(
+                "/addhtmlbox [<font color='FF00FF'>{repo}</font>] ",
+                "<font color='909090'>{pusher}</font> {pushed} ",
+                r#"<a href="{compare}"><b>{commits}</b> new commit{s}</a> "#,
+                "to <font color='800080'>{branch}</font>",
+            ),
             repo = h(self.get_repo_name()),
             pusher = h(&self.pusher.name),
             pushed = pushed,
@@ -142,7 +147,10 @@ impl Commit {
             None => (&self.message[..], false),
         };
         format!(
-            "<br /><a href=\"{url}\"><font color='606060'>{id}</font></a> <font color='909090'>{author}</font>: {message}{more}",
+            concat!(
+                "<br /><a href=\"{url}\"><font color='606060'>{id}</font></a> ",
+                "<font color='909090'>{author}</font>: {message}{more}",
+            ),
             url = h(&self.url),
             id = &self.id[0..6],
             author = h(&self.author.name),
