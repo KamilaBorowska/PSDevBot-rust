@@ -165,7 +165,7 @@ impl Commit {
             id = &self.id[0..6],
             author = h(&self.author.name),
             message = message,
-            more = if more { "..." } else { "" },
+            more = if more { "\u{2026}" } else { "" },
         )
     }
 }
