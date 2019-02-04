@@ -15,7 +15,7 @@ use std::error::Error;
 use tokio::await;
 use unbounded::UnboundedSender;
 use warp::{self, path, Filter};
-use warp_github_webhook::{webhook, PUSH};
+use warp_github_webhook::webhook;
 
 fn main() -> Result<(), Box<dyn Error>> {
     tokio::run_async(
@@ -50,7 +50,7 @@ async fn start(
     let mut sender = UnboundedSender::new(sender);
     let route_sender = sender.clone();
     let route = path!("github" / "callback")
-        .and(webhook(PUSH, secret))
+        .and(webhook(warp_github_webhook::Kind::PUSH, secret))
         .and_then(move |push_event| handle_push_event(route_sender.clone(), push_event));
     tokio::spawn(warp::serve(route).bind(([0, 0, 0, 0], port)));
     loop {
