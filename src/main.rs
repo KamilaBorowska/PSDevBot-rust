@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use serde_derive::Deserialize;
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect, RoomId};
+use showdown::{connect, Receiver, RoomId};
 use std::env;
 use std::error::Error;
 use tokio::await;
@@ -47,7 +47,20 @@ async fn start(
             break;
         }
     }
-    let mut sender = UnboundedSender::new(sender);
+    await!(run_authenticated(
+        UnboundedSender::new(sender),
+        receiver,
+        secret,
+        port,
+    ))
+}
+
+async fn run_authenticated(
+    mut sender: UnboundedSender,
+    mut receiver: Receiver,
+    secret: String,
+    port: u16,
+) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let route_sender = sender.clone();
     let route = path!("github" / "callback")
         .and(webhook(warp_github_webhook::Kind::PUSH, secret))
