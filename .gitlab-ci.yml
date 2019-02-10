@@ -1,0 +1,49 @@
+stages:
+- build
+- staging
+
+build:
+  stage: build
+  image: rustlang/rust:nightly
+  script:
+  - &print_version rustc --version && cargo --version
+  - cargo build --release --verbose
+  artifacts:
+    paths:
+    - target/release/psdevbot-rust
+
+test:
+  stage: build
+  image: rustlang/rust:nightly
+  script:
+  - *print_version
+  - cargo test --verbose
+
+rustfmt:
+  stage: build
+  image: rustlang/rust:nightly
+  script:
+  - *print_version
+  - rustup component add rustfmt-preview
+  - cargo fmt -- --check
+
+staging:
+  stage: staging
+  image: ubuntu:latest
+  dependencies:
+  - build
+  script:
+  - apt-get update -y
+  - apt-get install openssh-client git -y
+  - eval $(ssh-agent -s)
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+  - DATE="$(TZ=GMT git show -s --format='%cd' --date=iso-strict-local)"
+  - scp target/release/psdevbot-rust psdevbot-staging@ssh.xfix.pw:releases/"$DATE"
+  - printf "#!/bin/sh\nexec releases/%s\n" "$DATE" | ssh psdevbot-staging@ssh.xfix.pw tee run
+  - ssh psdevbot-staging@ssh.xfix.pw systemctl restart --user psdevbot
+  only:
+  - master
