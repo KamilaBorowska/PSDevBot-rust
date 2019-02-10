@@ -174,7 +174,7 @@ impl Commit {
 fn format_title(message: &str, url: &str) -> String {
     let message = h(message);
     lazy_static! {
-        static ref ISSUE_PATTERN: Regex = Regex::new(r#"#(\d+)"#).unwrap();
+        static ref ISSUE_PATTERN: Regex = Regex::new(r#"#([0-9]+)"#).unwrap();
     }
     ISSUE_PATTERN
         .replace_all(&message, |c: &Captures<'_>| {
