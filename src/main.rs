@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use serde_derive::Deserialize;
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect, Receiver, RoomId};
+use showdown::{connect_to_url, url::Url, Receiver, RoomId};
 use std::env;
 use std::error::Error;
 use tokio::await;
@@ -20,6 +20,7 @@ use warp_github_webhook::webhook;
 fn main() -> Result<(), Box<dyn Error>> {
     tokio::run_async(
         start(
+            env::var("PSDEVBOT_SERVER")?,
             env::var("PSDEVBOT_USER")?,
             env::var("PSDEVBOT_PASSWORD")?,
             env::var("PSDEVBOT_SECRET")?,
@@ -34,12 +35,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn start(
+    server: String,
     login: String,
     password: String,
     secret: String,
     port: u16,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let (mut sender, mut receiver) = await!(connect("showdown"))?;
+    let (mut sender, mut receiver) = await!(connect_to_url(&Url::parse(&server)?))?;
     loop {
         let message = await!(receiver.receive())?;
         if let Kind::Challenge(ch) = message.parse().kind {
