@@ -3,6 +3,7 @@
 
 mod unbounded;
 
+use futures::sync::oneshot;
 use futures03::prelude::*;
 use htmlescape::encode_minimal as h;
 use lazy_static::lazy_static;
@@ -74,7 +75,12 @@ async fn run_authenticated(
                 ),
             ),
     );
-    tokio::spawn(warp::serve(route).bind(([0, 0, 0, 0], port)));
+    let (_tx, rx) = oneshot::channel();
+    tokio::spawn(
+        warp::serve(route)
+            .bind_with_graceful_shutdown(([0, 0, 0, 0], port), rx)
+            .1,
+    );
     loop {
         let message = await!(receiver.receive())?;
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.parse().kind {
