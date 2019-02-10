@@ -61,10 +61,19 @@ async fn run_authenticated(
     secret: String,
     port: u16,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let route_sender = sender.clone();
-    let route = path!("github" / "callback")
-        .and(webhook(warp_github_webhook::Kind::PUSH, secret))
-        .and_then(move |push_event| handle_push_event(route_sender.clone(), push_event));
+    let push_sender = sender.clone();
+    let pull_request_sender = sender.clone();
+    let route = path!("github" / "callback").and(
+        webhook(warp_github_webhook::Kind::PUSH, secret.clone())
+            .and_then(move |push_event| handle_push_event(push_sender.clone(), push_event))
+            .or(
+                webhook(warp_github_webhook::Kind::PULL_REQUEST, secret).and_then(
+                    move |pull_request| {
+                        handle_pull_request(pull_request_sender.clone(), pull_request)
+                    },
+                ),
+            ),
+    );
     tokio::spawn(warp::serve(route).bind(([0, 0, 0, 0], port)));
     loop {
         let message = await!(receiver.receive())?;
@@ -108,12 +117,11 @@ impl PushEvent {
         };
         let mut output = format!(
             concat!(
-                "/addhtmlbox [<font color='FF00FF'>{repo}</font>] ",
-                "<font color='909090'>{pusher}</font> {pushed} ",
+                "/addhtmlbox {repo} <font color='909090'>{pusher}</font> {pushed} ",
                 r#"<a href="{compare}"><b>{commits}</b> new commit{s}</a> "#,
                 "to <font color='800080'>{branch}</font>",
             ),
-            repo = h(self.get_repo_name()),
+            repo = self.repository.format(),
             pusher = h(&self.pusher.name),
             pushed = pushed,
             compare = self.compare,
@@ -122,18 +130,9 @@ impl PushEvent {
             branch = h(self.get_branch()),
         );
         for commit in &self.commits {
-            output += &commit.format(&self.repository.url);
+            output += &commit.format(&self.repository.html_url);
         }
         output
-    }
-
-    fn get_repo_name(&self) -> &str {
-        match self.repository.name.as_str() {
-            "Pokemon-Showdown" => "server",
-            "Pokemon-Showdown-Client" => "client",
-            "Pokemon-Showdown-Dex" => "dex",
-            repo => repo,
-        }
     }
 
     fn get_branch(&self) -> &str {
@@ -158,13 +157,6 @@ impl Commit {
             Some(index) => (&self.message[..index], true),
             None => (&self.message[..], false),
         };
-        let message = h(message);
-        lazy_static! {
-            static ref ISSUE_PATTERN: Regex = Regex::new(r#"#(\d+)"#).unwrap();
-        }
-        let message = ISSUE_PATTERN.replace_all(&message, |c: &Captures<'_>| {
-            format!("<a href='{}/issues/{}'>{}</a>", h(url), h(&c[1]), h(&c[0]))
-        });
         format!(
             concat!(
                 "<br /><a href=\"{url}\"><font color='606060'>{id}</font></a> ",
@@ -173,10 +165,22 @@ impl Commit {
             url = h(&self.url),
             id = &self.id[0..6],
             author = h(&self.author.name),
-            message = message,
+            message = format_title(message, url),
             more = if more { "\u{2026}" } else { "" },
         )
     }
+}
+
+fn format_title(message: &str, url: &str) -> String {
+    let message = h(message);
+    lazy_static! {
+        static ref ISSUE_PATTERN: Regex = Regex::new(r#"#(\d+)"#).unwrap();
+    }
+    ISSUE_PATTERN
+        .replace_all(&message, |c: &Captures<'_>| {
+            format!("<a href='{}/issues/{}'>{}</a>", h(url), h(&c[1]), h(&c[0]))
+        })
+        .to_string()
 }
 
 #[derive(Debug, Deserialize)]
@@ -187,5 +191,65 @@ struct User {
 #[derive(Debug, Deserialize)]
 struct Repository {
     name: String,
-    url: String,
+    html_url: String,
+}
+
+impl Repository {
+    fn format(&self) -> String {
+        let repo = match self.name.as_str() {
+            "Pokemon-Showdown" => "server",
+            "Pokemon-Showdown-Client" => "client",
+            "Pokemon-Showdown-Dex" => "dex",
+            repo => repo,
+        };
+        format!("[<font color='FF00FF'>{}</font>]", h(repo))
+    }
+}
+
+fn handle_pull_request(
+    mut sender: UnboundedSender,
+    pull_request: PullRequestEvent,
+) -> Result<&'static str, warp::Rejection> {
+    sender
+        .send_chat_message(RoomId("botdevelopment"), &pull_request.get_message())
+        .map_err(warp::reject::custom)?;
+    Ok("")
+}
+
+#[derive(Debug, Deserialize)]
+struct PullRequestEvent {
+    action: String,
+    pull_request: PullRequest,
+    repository: Repository,
+    sender: Sender,
+}
+
+impl PullRequestEvent {
+    fn get_message(&self) -> String {
+        format!(
+            concat!(
+                "/addhtmlbox {repo} <font color='909090'>{author}</font> ",
+                "{action} pull request ",
+                "<a href=\"{url}\">#{number}</a>: {title}",
+            ),
+            repo = self.repository.format(),
+            author = h(&self.sender.login),
+            action = h(&self.action),
+            url = h(&self.pull_request.html_url),
+            number = self.pull_request.number,
+            title = format_title(&self.pull_request.title, &self.repository.html_url),
+        )
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct PullRequest {
+    number: u32,
+    html_url: String,
+    title: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Sender {
+    login: String,
 }
