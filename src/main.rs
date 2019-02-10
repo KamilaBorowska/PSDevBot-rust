@@ -58,7 +58,7 @@ async fn start(
 }
 
 async fn run_authenticated(
-    mut sender: UnboundedSender,
+    sender: UnboundedSender,
     mut receiver: Receiver,
     secret: String,
     port: u16,
@@ -67,12 +67,10 @@ async fn run_authenticated(
     let pull_request_sender = sender.clone();
     let route = path!("github" / "callback").and(
         webhook(warp_github_webhook::Kind::PUSH, secret.clone())
-            .and_then(move |push_event| handle_push_event(push_sender.clone(), push_event))
+            .and_then(move |push_event| handle_push_event(&push_sender, push_event))
             .or(
                 webhook(warp_github_webhook::Kind::PULL_REQUEST, secret).and_then(
-                    move |pull_request| {
-                        handle_pull_request(pull_request_sender.clone(), pull_request)
-                    },
+                    move |pull_request| handle_pull_request(&pull_request_sender, pull_request),
                 ),
             ),
     );
@@ -87,7 +85,7 @@ async fn run_authenticated(
 }
 
 fn handle_push_event(
-    mut sender: UnboundedSender,
+    sender: &UnboundedSender,
     push_event: PushEvent,
 ) -> Result<&'static str, warp::Rejection> {
     sender
@@ -209,7 +207,7 @@ impl Repository {
 }
 
 fn handle_pull_request(
-    mut sender: UnboundedSender,
+    sender: &UnboundedSender,
     pull_request: PullRequestEvent,
 ) -> Result<&'static str, warp::Rejection> {
     sender

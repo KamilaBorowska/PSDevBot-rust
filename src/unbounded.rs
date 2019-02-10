@@ -31,7 +31,7 @@ impl UnboundedSender {
     }
 
     pub fn send_chat_message(
-        &mut self,
+        &self,
         room_id: RoomId<'_>,
         message: &str,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -42,10 +42,7 @@ impl UnboundedSender {
         Ok(())
     }
 
-    pub fn send_global_command(
-        &mut self,
-        command: &str,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub fn send_global_command(&self, command: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.sender
             .unbounded_send(Message::GlobalCommand(command.to_string()))?;
         Ok(())
