@@ -5,34 +5,42 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use serde_derive::Deserialize;
 use showdown::RoomId;
-use warp::{self, path, Filter};
+use warp::{self, path, Filter, Rejection};
 use warp_github_webhook::webhook;
 
 pub fn start_server(secret: String, sender: &UnboundedSender, port: u16) -> oneshot::Sender<()> {
-    let push_sender = sender.clone();
-    let pull_request_sender = sender.clone();
-    let route = path!("github" / "callback").and(
-        webhook(warp_github_webhook::Kind::PUSH, secret.clone())
-            .and_then(move |push_event| handle_push_event(&push_sender, push_event))
-            .or(
-                webhook(warp_github_webhook::Kind::PULL_REQUEST, secret).and_then(
-                    move |pull_request| handle_pull_request(&pull_request_sender, pull_request),
-                ),
-            ),
-    );
     let (tx, rx) = oneshot::channel();
     tokio::spawn(
-        warp::serve(route)
+        warp::serve(get_route(secret, sender))
             .bind_with_graceful_shutdown(([0, 0, 0, 0], port), rx)
             .1,
     );
     tx
 }
 
+fn get_route(
+    secret: String,
+    sender: &UnboundedSender,
+) -> impl Filter<Extract = (&'static str,), Error = Rejection> {
+    let push_sender = sender.clone();
+    let pull_request_sender = sender.clone();
+    path!("github" / "callback")
+        .and(
+            webhook(warp_github_webhook::Kind::PUSH, secret.clone())
+                .and_then(move |push_event| handle_push_event(&push_sender, push_event))
+                .or(
+                    webhook(warp_github_webhook::Kind::PULL_REQUEST, secret).and_then(
+                        move |pull_request| handle_pull_request(&pull_request_sender, pull_request),
+                    ),
+                ),
+        )
+        .unify()
+}
+
 fn handle_push_event(
     sender: &UnboundedSender,
     push_event: PushEvent,
-) -> Result<&'static str, warp::Rejection> {
+) -> Result<&'static str, Rejection> {
     sender
         .send_chat_message(RoomId("botdevelopment"), &push_event.get_message())
         .map_err(warp::reject::custom)?;
@@ -168,7 +176,7 @@ impl Repository {
 fn handle_pull_request(
     sender: &UnboundedSender,
     pull_request: PullRequestEvent,
-) -> Result<&'static str, warp::Rejection> {
+) -> Result<&'static str, Rejection> {
     sender
         .send_chat_message(RoomId("botdevelopment"), &pull_request.get_message())
         .map_err(warp::reject::custom)?;
