@@ -64,6 +64,17 @@ async fn run_authenticated(
     secret: String,
     port: u16,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    let _server = start_server(secret, &sender, port);
+    loop {
+        let message = await!(receiver.receive())?;
+        if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.parse().kind {
+            sender.send_global_command("away")?;
+            sender.send_global_command("join bot dev")?;
+        }
+    }
+}
+
+fn start_server(secret: String, sender: &UnboundedSender, port: u16) -> oneshot::Sender<()> {
     let push_sender = sender.clone();
     let pull_request_sender = sender.clone();
     let route = path!("github" / "callback").and(
@@ -75,19 +86,13 @@ async fn run_authenticated(
                 ),
             ),
     );
-    let (_tx, rx) = oneshot::channel();
+    let (tx, rx) = oneshot::channel();
     tokio::spawn(
         warp::serve(route)
             .bind_with_graceful_shutdown(([0, 0, 0, 0], port), rx)
             .1,
     );
-    loop {
-        let message = await!(receiver.receive())?;
-        if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.parse().kind {
-            sender.send_global_command("away")?;
-            sender.send_global_command("join bot dev")?;
-        }
-    }
+    tx
 }
 
 fn handle_push_event(
