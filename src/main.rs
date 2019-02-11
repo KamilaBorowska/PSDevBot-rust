@@ -4,7 +4,6 @@
 mod unbounded;
 mod webhook;
 
-use futures03::prelude::*;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, url::Url, Receiver};
 use std::env;
@@ -14,19 +13,15 @@ use unbounded::UnboundedSender;
 use webhook::start_server;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    tokio::run_async(
-        start(
-            env::var("PSDEVBOT_SERVER")?,
-            env::var("PSDEVBOT_USER")?,
-            env::var("PSDEVBOT_PASSWORD")?,
-            env::var("PSDEVBOT_SECRET")?,
-            match env::var("PSDEVBOT_PORT") {
-                Ok(port) => port.parse()?,
-                Err(_) => 3030,
-            },
-        )
-        .map(|e| e.unwrap()),
-    );
+    let server = env::var("PSDEVBOT_SERVER")?;
+    let user = env::var("PSDEVBOT_USER")?;
+    let password = env::var("PSDEVBOT_PASSWORD")?;
+    let secret = env::var("PSDEVBOT_SECRET")?;
+    let port = match env::var("PSDEVBOT_PORT") {
+        Ok(port) => port.parse()?,
+        Err(_) => 3030,
+    };
+    tokio::run_async(async move { await!(start(server, user, password, secret, port)).unwrap() });
     Ok(())
 }
 
