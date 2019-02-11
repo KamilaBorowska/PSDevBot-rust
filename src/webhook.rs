@@ -102,6 +102,7 @@ impl Commit {
             Some(index) => (&self.message[..index], true),
             None => (&self.message[..], false),
         };
+        let formatted_name = format!("<font color='909090'>{}</a>", h(&self.author.name));
         format!(
             concat!(
                 "<br /><a href=\"{url}\"><font color='606060'>{id}</font></a> ",
@@ -111,11 +112,11 @@ impl Commit {
             id = &self.id[0..6],
             author = match &self.author.username {
                 Some(username) => format!(
-                    r#"<a href="https://github.com/{username}">{name}</a>"#,
+                    r#"<a href="https://github.com/{username}">{formatted_name}</a>"#,
                     username = h(username),
-                    name = h(&self.author.name)
+                    formatted_name = formatted_name,
                 ),
-                None => h(&self.author.name),
+                None => formatted_name,
             },
             message = format_title(message, url),
             more = if more { "\u{2026}" } else { "" },
