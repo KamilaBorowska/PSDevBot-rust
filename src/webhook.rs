@@ -47,7 +47,7 @@ struct PushEvent {
     forced: bool,
     commits: Vec<Commit>,
     compare: String,
-    pusher: User,
+    pusher: Pusher,
     repository: Repository,
 }
 
@@ -92,7 +92,7 @@ impl PushEvent {
 struct Commit {
     id: String,
     message: String,
-    author: User,
+    author: Author,
     url: String,
 }
 
@@ -109,7 +109,14 @@ impl Commit {
             ),
             url = h(&self.url),
             id = &self.id[0..6],
-            author = h(&self.author.name),
+            author = match &self.author.username {
+                Some(username) => format!(
+                    r#"<a href="https://github.com/{username}">{name}</a>"#,
+                    username = h(username),
+                    name = h(&self.author.name)
+                ),
+                None => h(&self.author.name),
+            },
             message = format_title(message, url),
             more = if more { "\u{2026}" } else { "" },
         )
@@ -129,8 +136,14 @@ fn format_title(message: &str, url: &str) -> String {
 }
 
 #[derive(Debug, Deserialize)]
-struct User {
+struct Pusher {
     name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Author {
+    name: String,
+    username: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
