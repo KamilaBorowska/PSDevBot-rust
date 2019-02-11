@@ -220,3 +220,31 @@ struct PullRequest {
 struct Sender {
     login: String,
 }
+
+#[cfg(test)]
+mod test {
+    use super::{Author, Commit};
+
+    #[test]
+    fn test_commit() {
+        let commit = Commit {
+            id: "0da2590a700d054fc2ce39ddc9c95f360329d9be".into(),
+            message: "Hello, world!".into(),
+            author: Author {
+                name: "Konrad Borowski".into(),
+                username: Some("xfix".into()),
+            },
+            url: "http://example.com".into(),
+        };
+        assert_eq!(
+            commit.format("shouldn't be used"),
+            concat!(
+                r#"<br /><a href="http://example.com">"#,
+                "<font color='606060'>0da259</font></a> ",
+                "<font color='909090'><a href=\"https://github.com/xfix\">",
+                "<font color=\'909090\'>Konrad Borowski</a></a></font>: ",
+                "Hello, world!",
+            ),
+        );
+    }
+}
