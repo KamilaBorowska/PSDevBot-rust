@@ -80,7 +80,7 @@ impl PushEvent {
             repo = self.repository.format(),
             pusher = h(&self.pusher.name),
             pushed = pushed,
-            compare = self.compare,
+            compare = h(&self.compare),
             commits = self.commits.len(),
             s = if self.commits.len() == 1 { "" } else { "s" },
             branch = h(self.get_branch()),
