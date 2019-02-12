@@ -112,11 +112,11 @@ impl Commit {
             Some(index) => (&self.message[..index], true),
             None => (&self.message[..], false),
         };
-        let formatted_name = format!("<font color='909090'>{}</a>", h(&self.author.name));
+        let formatted_name = format!("<font color='909090'>{}</font>", h(&self.author.name));
         format!(
             concat!(
                 "<br /><a href=\"{url}\"><font color='606060'>{id}</font></a> ",
-                "<font color='909090'>{author}</font>: {message}{more}",
+                "{author}: {message}{more}",
             ),
             url = h(&self.url),
             id = &self.id[0..6],
@@ -243,8 +243,8 @@ mod test {
             concat!(
                 r#"<br /><a href="http://example.com">"#,
                 "<font color='606060'>0da259</font></a> ",
-                "<font color='909090'><a href=\"https://github.com/xfix\">",
-                "<font color=\'909090\'>Konrad Borowski</a></a></font>: ",
+                "<a href=\"https://github.com/xfix\">",
+                "<font color=\'909090\'>Konrad Borowski</font></a>: ",
                 "Hello, world!",
             ),
         );
