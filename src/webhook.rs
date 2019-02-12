@@ -116,14 +116,14 @@ impl Commit {
         let formatted_name = format!("<font color='909090'>{}</font>", h(&self.author.name));
         format!(
             concat!(
-                "<br /><a href=\"{url}\"><font color='606060'>{id}</font></a> ",
+                "<br /><a href='{url}'><font color='606060'>{id}</font></a> ",
                 "{author}: {message}{more}",
             ),
             url = h(&self.url),
             id = &self.id[0..6],
             author = match &self.author.username {
                 Some(username) => format!(
-                    r#"<a href="https://github.com/{username}">{formatted_name}</a>"#,
+                    "<a href='https://github.com/{username}'>{formatted_name}</a>",
                     username = h(username),
                     formatted_name = formatted_name,
                 ),
@@ -204,7 +204,7 @@ impl PullRequestEvent {
             concat!(
                 "/addhtmlbox {repo} <font color='909090'>{author}</font> ",
                 "{action} pull request ",
-                "<a href=\"{url}\">#{number}</a>: {title}",
+                "<a href='{url}'>#{number}</a>: {title}",
             ),
             repo = self.repository.format(),
             author = h(&self.sender.login),
@@ -246,10 +246,10 @@ mod test {
         assert_eq!(
             commit.format("shouldn't be used"),
             concat!(
-                r#"<br /><a href="http://example.com">"#,
+                "<br /><a href='http://example.com'>",
                 "<font color='606060'>0da259</font></a> ",
-                "<a href=\"https://github.com/xfix\">",
-                "<font color=\'909090\'>Konrad Borowski</font></a>: ",
+                "<a href='https://github.com/xfix'>",
+                "<font color='909090'>Konrad Borowski</font></a>: ",
                 "Hello, world!",
             ),
         );
