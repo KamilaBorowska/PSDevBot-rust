@@ -172,7 +172,11 @@ impl Repository {
             "Pokemon-Showdown-Dex" => "dex",
             repo => repo,
         };
-        format!("[<font color='FF00FF'>{}</font>]", h(repo))
+        format!(
+            "[<a href='{url}'><font color='FF00FF'>{name}</font></a>]",
+            url = self.html_url,
+            name = h(repo),
+        )
     }
 }
 
