@@ -72,9 +72,10 @@ impl PushEvent {
         };
         let mut output = format!(
             concat!(
-                "/addhtmlbox {repo} <font color='909090'>{pusher}</font> {pushed} ",
-                r#"<a href="{compare}"><b>{commits}</b> new commit{s}</a> "#,
-                "to <font color='800080'>{branch}</font>",
+                "/addhtmlbox {repo} <font color='909090'>",
+                "<a href='https://github.com/{pusher}'>{pusher}</a></font> ",
+                "{pushed} <a href='{compare}'><b>{commits}</b> new ",
+                "commit{s}</a> to <font color='800080'>{branch}</font>",
             ),
             repo = self.repository.format(),
             pusher = h(&self.pusher.name),
