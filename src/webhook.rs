@@ -200,6 +200,7 @@ struct PullRequestEvent {
 
 impl PullRequestEvent {
     fn get_message(&self) -> String {
+        let escaped_action;
         format!(
             concat!(
                 "/addhtmlbox {repo} <font color='909090'>{author}</font> ",
@@ -208,7 +209,13 @@ impl PullRequestEvent {
             ),
             repo = self.repository.format(),
             author = h(&self.sender.login),
-            action = h(&self.action),
+            action = match self.action.as_str() {
+                "synchronize" => "updated",
+                action => {
+                    escaped_action = h(action);
+                    &escaped_action
+                }
+            },
             url = h(&self.pull_request.html_url),
             number = self.pull_request.number,
             title = format_title(&self.pull_request.title, &self.repository.html_url),
