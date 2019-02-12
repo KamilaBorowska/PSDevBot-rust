@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::unbounded::UnboundedSender;
 use futures::sync::oneshot;
 use htmlescape::encode_minimal as h;
@@ -8,7 +9,8 @@ use showdown::RoomId;
 use warp::{self, path, Filter, Rejection};
 use warp_github_webhook::webhook;
 
-pub fn start_server(secret: String, sender: &UnboundedSender, port: u16) -> oneshot::Sender<()> {
+pub fn start_server(config: Config, sender: &UnboundedSender) -> oneshot::Sender<()> {
+    let Config { secret, port, .. } = config;
     let (tx, rx) = oneshot::channel();
     tokio::spawn(
         warp::serve(get_route(secret, sender))

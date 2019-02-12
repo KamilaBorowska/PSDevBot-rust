@@ -1,60 +1,46 @@
 #![feature(async_await, await_macro, futures_api)]
 #![recursion_limit = "128"]
 
+mod config;
 mod unbounded;
 mod webhook;
 
+use config::Config;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, url::Url, Receiver};
-use std::env;
 use std::error::Error;
 use tokio::await;
 use unbounded::UnboundedSender;
 use webhook::start_server;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let server = env::var("PSDEVBOT_SERVER")?;
-    let user = env::var("PSDEVBOT_USER")?;
-    let password = env::var("PSDEVBOT_PASSWORD")?;
-    let secret = env::var("PSDEVBOT_SECRET")?;
-    let port = match env::var("PSDEVBOT_PORT") {
-        Ok(port) => port.parse()?,
-        Err(_) => 3030,
-    };
-    tokio::run_async(async move { await!(start(server, user, password, secret, port)).unwrap() });
+    let config = Config::new()?;
+    tokio::run_async(async move { await!(start(config)).unwrap() });
     Ok(())
 }
 
-async fn start(
-    server: String,
-    login: String,
-    password: String,
-    secret: String,
-    port: u16,
-) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let (mut sender, mut receiver) = await!(connect_to_url(&Url::parse(&server)?))?;
+async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+    let (mut sender, mut receiver) = await!(connect_to_url(&Url::parse(&config.server)?))?;
     loop {
         let message = await!(receiver.receive())?;
         if let Kind::Challenge(ch) = message.parse().kind {
-            await!(ch.login_with_password(&mut sender, &login, &password))?;
+            await!(ch.login_with_password(&mut sender, &config.user, &config.password))?;
             break;
         }
     }
     await!(run_authenticated(
         UnboundedSender::new(sender),
         receiver,
-        secret,
-        port,
+        config,
     ))
 }
 
 async fn run_authenticated(
     sender: UnboundedSender,
     mut receiver: Receiver,
-    secret: String,
-    port: u16,
+    config: Config,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _server = start_server(secret, &sender, port);
+    let _server = start_server(config, &sender);
     loop {
         let message = await!(receiver.receive())?;
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.parse().kind {
