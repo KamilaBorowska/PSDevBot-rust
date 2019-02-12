@@ -174,7 +174,7 @@ impl Repository {
         };
         format!(
             "[<a href='{url}'><font color='FF00FF'>{name}</font></a>]",
-            url = self.html_url,
+            url = h(&self.html_url),
             name = h(repo),
         )
     }
