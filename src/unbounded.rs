@@ -1,4 +1,5 @@
 use futures::sync::mpsc;
+use log::info;
 use showdown::{RoomId, Sender};
 use std::error::Error;
 use tokio::await;
@@ -15,6 +16,7 @@ impl UnboundedSender {
         tokio::spawn_async(
             async move {
                 while let Some(message) = await!(receiver.next()) {
+                    info!("Sent message: {:?}", message);
                     (match message.unwrap() {
                         Message::GlobalCommand(c) => {
                             await!(showdown_sender.send_global_command(&c))
