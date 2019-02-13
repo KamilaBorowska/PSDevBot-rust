@@ -203,8 +203,8 @@ impl PullRequestEvent {
         let escaped_action;
         format!(
             concat!(
-                "/addhtmlbox {repo} <a href='https://github.com/{author}'>',
-                '<font color='909090'>{author}</font></a> {action} pull request ",
+                "/addhtmlbox {repo} <a href='https://github.com/{author}'>",
+                "<font color='909090'>{author}</font></a> {action} pull request ",
                 "<a href='{url}'>#{number}</a>: {title}",
             ),
             repo = self.repository.format(),
