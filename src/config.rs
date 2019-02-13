@@ -1,8 +1,9 @@
+use showdown::url::Url;
 use std::env;
 use std::error::Error;
 
 pub struct Config {
-    pub server: String,
+    pub server: Url,
     pub user: String,
     pub password: String,
     pub secret: String,
@@ -11,7 +12,7 @@ pub struct Config {
 
 impl Config {
     pub fn new() -> Result<Self, Box<dyn Error>> {
-        let server = env::var("PSDEVBOT_SERVER")?;
+        let server = Url::parse(&env::var("PSDEVBOT_SERVER")?)?;
         let user = env::var("PSDEVBOT_USER")?;
         let password = env::var("PSDEVBOT_PASSWORD")?;
         let secret = env::var("PSDEVBOT_SECRET")?;

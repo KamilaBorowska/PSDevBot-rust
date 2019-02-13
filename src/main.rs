@@ -8,7 +8,7 @@ mod webhook;
 use config::Config;
 use log::info;
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect_to_url, url::Url, Receiver};
+use showdown::{connect_to_url, Receiver};
 use std::error::Error;
 use tokio::await;
 use unbounded::UnboundedSender;
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let (mut sender, mut receiver) = await!(connect_to_url(&Url::parse(&config.server)?))?;
+    let (mut sender, mut receiver) = await!(connect_to_url(&config.server))?;
     loop {
         let message = await!(receiver.receive())?;
         if let Kind::Challenge(ch) = message.parse().kind {
