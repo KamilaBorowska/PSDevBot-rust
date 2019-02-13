@@ -237,7 +237,7 @@ struct Sender {
 
 #[cfg(test)]
 mod test {
-    use super::{Author, Commit};
+    use super::{Author, Commit, PullRequest, PullRequestEvent, Repository, Sender};
 
     #[test]
     fn test_commit() {
@@ -258,6 +258,32 @@ mod test {
                 "<a href='https://github.com/xfix'>",
                 "<font color='909090'>Konrad Borowski</font></a>: ",
                 "Hello, world!",
+            ),
+        );
+    }
+
+    #[test]
+    fn test_pull_request() {
+        let event = PullRequestEvent {
+            action: "created".into(),
+            pull_request: PullRequest {
+                number: 1,
+                html_url: "http://example.com/pr/1".into(),
+                title: "Hello, world".into(),
+            },
+            repository: Repository {
+                name: "ExampleCom".into(),
+                html_url: "http://example.com/".into(),
+            },
+            sender: Sender { login: "Me".into() },
+        };
+        assert_eq!(
+            event.get_message(),
+            concat!(
+                "/addhtmlbox [<a href='http://example.com/'><font color='FF00FF'>",
+                "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
+                "color='909090'>Me</font></a> created pull request ",
+                "<a href='http://example.com/pr/1'>#1</a>: Hello, world",
             ),
         );
     }
