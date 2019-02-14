@@ -8,6 +8,7 @@ mod webhook;
 use config::Config;
 use log::info;
 use sentry::internals::ClientInitGuard;
+use sentry::ClientOptions;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, Receiver};
 use std::error::Error;
@@ -23,7 +24,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn initialize_sentry(config: &Config) -> ClientInitGuard {
-    let sentry = sentry::init(config.sentry_dsn.as_str());
+    let sentry = sentry::init((
+        config.sentry_dsn.as_str(),
+        ClientOptions {
+            release: option_env!("CI_COMMIT_SHA").map(<&str>::into),
+            ..ClientOptions::default()
+        },
+    ));
     sentry::integrations::env_logger::init(None, Default::default());
     sentry::integrations::panic::register_panic_handler();
     sentry
