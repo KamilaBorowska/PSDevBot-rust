@@ -5,12 +5,12 @@ authors = ["Konrad Borowski <konrad@borowski.pw>"]
 edition = "2018"
 
 [dependencies]
-env_logger = "0.6.0"
 futures = "0.1.25"
 lazy_static = "1.2.0"
 log = "0.4.6"
 htmlescape = "0.3.1"
 regex = "1.1.0"
+sentry = "0.13.0"
 serde = "1.0.85"
 serde_derive = "1.0.85"
 showdown = "0.2.0"

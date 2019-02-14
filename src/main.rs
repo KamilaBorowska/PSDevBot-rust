@@ -7,6 +7,7 @@ mod webhook;
 
 use config::Config;
 use log::info;
+use sentry::internals::ClientInitGuard;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, Receiver};
 use std::error::Error;
@@ -15,10 +16,17 @@ use unbounded::UnboundedSender;
 use webhook::start_server;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
     let config = Config::new()?;
+    let _sentry = initialize_sentry(&config);
     tokio::run_async(async move { await!(start(config)).unwrap() });
     Ok(())
+}
+
+fn initialize_sentry(config: &Config) -> ClientInitGuard {
+    let sentry = sentry::init(config.sentry_dsn.as_str());
+    sentry::integrations::env_logger::init(None, Default::default());
+    sentry::integrations::panic::register_panic_handler();
+    sentry
 }
 
 async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
