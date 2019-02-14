@@ -8,6 +8,7 @@ pub struct Config {
     pub password: String,
     pub secret: String,
     pub port: u16,
+    pub sentry_dsn: String,
 }
 
 impl Config {
@@ -20,12 +21,14 @@ impl Config {
             Ok(port) => port.parse()?,
             Err(_) => 3030,
         };
+        let sentry_dsn = env::var("SENTRY_DSN").unwrap_or_default();
         Ok(Self {
             server,
             user,
             password,
             secret,
             port,
+            sentry_dsn,
         })
     }
 }
