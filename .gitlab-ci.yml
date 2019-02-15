@@ -19,14 +19,6 @@ test:
   - *print_version
   - cargo test --verbose
 
-rustfmt:
-  stage: build
-  image: rustlang/rust:nightly
-  script:
-  - *print_version
-  - rustup component add rustfmt-preview
-  - cargo fmt -- --check
-
 staging:
   stage: staging
   image: ubuntu:latest
