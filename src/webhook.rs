@@ -13,7 +13,7 @@ pub fn start_server(config: Config, sender: &UnboundedSender) -> oneshot::Sender
     let Config { secret, port, .. } = config;
     let (tx, rx) = oneshot::channel();
     tokio::spawn(
-        warp::serve(get_route(secret, sender))
+        warp::serve(get_route(secret, sender).with(warp::log("webhook")))
             .bind_with_graceful_shutdown(([0, 0, 0, 0], port), rx)
             .1,
     );
@@ -23,7 +23,7 @@ pub fn start_server(config: Config, sender: &UnboundedSender) -> oneshot::Sender
 fn get_route(
     secret: String,
     sender: &UnboundedSender,
-) -> impl Filter<Extract = (&'static str,), Error = Rejection> {
+) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
     let push_sender = sender.clone();
     let pull_request_sender = sender.clone();
     path!("github" / "callback")
