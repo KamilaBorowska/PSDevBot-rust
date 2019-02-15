@@ -6,7 +6,7 @@ use regex::{Captures, Regex};
 use serde_derive::Deserialize;
 use showdown::RoomId;
 use std::borrow::Cow;
-use warp::{self, path, Filter, Rejection};
+use warp::{path, Filter, Rejection};
 use warp_github_webhook::webhook;
 
 pub fn start_server(config: Config, sender: &UnboundedSender) -> oneshot::Sender<()> {
