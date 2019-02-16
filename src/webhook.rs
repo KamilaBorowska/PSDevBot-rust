@@ -3,7 +3,7 @@ use crate::unbounded::UnboundedSender;
 use futures::sync::oneshot;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use showdown::RoomId;
 use std::borrow::Cow;
 use warp::{path, Filter, Rejection};
