@@ -24,6 +24,14 @@ test:
   script:
   - cargo test --verbose
 
+rustfmt:
+  stage: build
+  image: ubuntu:latest
+  before_script: *before
+  script:
+  - rustup component add rustfmt-preview
+  - cargo fmt -- --check
+
 staging:
   stage: staging
   image: ubuntu:latest
