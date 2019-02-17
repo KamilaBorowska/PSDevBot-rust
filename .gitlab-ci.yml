@@ -4,9 +4,14 @@ stages:
 
 build:
   stage: build
-  image: rustlang/rust:nightly
+  image: ubuntu:latest
+  before_script: &before
+  - apt-get update -y
+  - apt-get install build-essential curl libssl-dev pkg-config -y
+  - curl https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2019-01-15
+  - PATH=~/.cargo/bin:$PATH
+  - rustc --version && cargo --version
   script:
-  - &print_version rustc --version && cargo --version
   - cargo build --release --verbose
   artifacts:
     paths:
@@ -14,9 +19,9 @@ build:
 
 test:
   stage: build
-  image: rustlang/rust:nightly
+  image: ubuntu:latest
+  before_script: *before
   script:
-  - *print_version
   - cargo test --verbose
 
 staging:
