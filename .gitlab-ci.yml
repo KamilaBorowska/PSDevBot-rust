@@ -32,6 +32,14 @@ rustfmt:
   - rustup component add rustfmt-preview
   - cargo fmt -- --check
 
+clippy:
+  stage: build
+  image: ubuntu:latest
+  before_script: *before
+  script:
+  - rustup component add clippy
+  - cargo clippy --verbose
+
 staging:
   stage: staging
   image: ubuntu:latest
