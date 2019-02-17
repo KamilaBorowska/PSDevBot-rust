@@ -29,7 +29,7 @@ rustfmt:
   image: ubuntu:latest
   before_script: *before
   script:
-  - rustup component add rustfmt-preview
+  - rustup component add rustfmt
   - cargo fmt -- --check
 
 staging:
