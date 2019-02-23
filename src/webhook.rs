@@ -1,11 +1,11 @@
 use crate::config::Config;
 use crate::unbounded::UnboundedSender;
 use futures::sync::oneshot;
+use htmlescape::encode_minimal as h;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use showdown::RoomId;
-use std::borrow::Cow;
 use warp::{path, Filter, Rejection};
 use warp_github_webhook::webhook;
 
@@ -235,32 +235,6 @@ struct Sender {
     login: String,
 }
 
-fn h(input: &str) -> Cow<'_, str> {
-    let mut output = Cow::Borrowed(input);
-    for (pos, c) in input.char_indices() {
-        let append = match c {
-            '"' => "&quot;",
-            '&' => "&amp;",
-            '\'' => "&#x27;",
-            '<' => "&lt;",
-            '>' => "&gt;",
-            '\n' => "&#x0A;",
-            _ => {
-                if let Cow::Owned(buf) = &mut output {
-                    buf.push(c);
-                }
-                continue;
-            }
-        };
-        if let Cow::Borrowed(_) = output {
-            output = Cow::Owned(String::with_capacity(input.len() * 2));
-            output += &input[..pos];
-        }
-        output += append;
-    }
-    output
-}
-
 #[cfg(test)]
 mod test {
     use super::{Author, Commit, PullRequest, PullRequestEvent, Repository, Sender};
@@ -310,32 +284,6 @@ mod test {
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
                 "color='909090'>Me</font></a> created pull request ",
                 "<a href='http://example.com/pr/1'>#1</a>: Hello, world",
-            ),
-        );
-    }
-
-    #[test]
-    fn test_pull_request_with_newlines() {
-        let event = PullRequestEvent {
-            action: "created".into(),
-            pull_request: PullRequest {
-                number: 1,
-                html_url: "http://example.com/pr/1".into(),
-                title: "new\nline".into(),
-            },
-            repository: Repository {
-                name: "ExampleCom".into(),
-                html_url: "http://example.com/".into(),
-            },
-            sender: Sender { login: "Me".into() },
-        };
-        assert_eq!(
-            event.get_message(),
-            concat!(
-                "/addhtmlbox [<a href='http://example.com/'><font color='FF00FF'>",
-                "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
-                "color='909090'>Me</font></a> created pull request ",
-                "<a href='http://example.com/pr/1'>#1</a>: new&#x0A;line",
             ),
         );
     }
