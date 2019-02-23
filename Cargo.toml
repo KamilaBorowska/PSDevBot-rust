@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 futures = "0.1.25"
+htmlescape = "0.3.1"
 lazy_static = "1.2.0"
 log = "0.4.6"
 regex = "1.1.0"

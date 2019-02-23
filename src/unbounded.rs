@@ -39,14 +39,14 @@ impl UnboundedSender {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.sender.unbounded_send(Message::ChatMessage(
             room_id.0.to_string(),
-            message.to_string(),
+            message.replace('\n', " "),
         ))?;
         Ok(())
     }
 
     pub fn send_global_command(&self, command: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.sender
-            .unbounded_send(Message::GlobalCommand(command.to_string()))?;
+            .unbounded_send(Message::GlobalCommand(command.replace('\n', " ")))?;
         Ok(())
     }
 }
