@@ -39,8 +39,7 @@ fn initialize_sentry(config: &Config) -> ClientInitGuard {
 async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let (mut sender, mut receiver) = await!(connect_to_url(&config.server))?;
     loop {
-        let message = await!(receiver.receive())?;
-        if let Kind::Challenge(ch) = message.parse().kind {
+        if let Kind::Challenge(ch) = await!(receiver.receive())?.kind() {
             await!(ch.login_with_password(&mut sender, &config.user, &config.password))?;
             break;
         }
@@ -61,7 +60,7 @@ async fn run_authenticated(
     loop {
         let message = await!(receiver.receive())?;
         info!("Received message: {:?}", message);
-        if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.parse().kind {
+        if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.kind() {
             sender.send_global_command("away")?;
             sender.send_global_command("join bot dev")?;
         }
