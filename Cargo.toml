@@ -12,7 +12,7 @@ log = "0.4.6"
 regex = "1.1.0"
 sentry = "0.13.0"
 serde = { version = "1.0.85", features = ["derive"] }
-showdown = "0.2.0"
+showdown = "0.3.1"
 tokio = { version = "0.1.14", features = ["async-await-preview"] }
 warp = "0.1.11"
 warp_github_webhook = "0.2.2"
