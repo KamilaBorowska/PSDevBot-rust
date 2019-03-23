@@ -9,6 +9,7 @@ pub struct Config {
     pub secret: String,
     pub port: u16,
     pub sentry_dsn: String,
+    pub room_name: String,
 }
 
 impl Config {
@@ -22,6 +23,7 @@ impl Config {
             Err(_) => 3030,
         };
         let sentry_dsn = env::var("SENTRY_DSN").unwrap_or_default();
+        let room_name = env::var("PSDEVBOT_ROOM")?;
         Ok(Self {
             server,
             user,
@@ -29,6 +31,7 @@ impl Config {
             secret,
             port,
             sentry_dsn,
+            room_name,
         })
     }
 }

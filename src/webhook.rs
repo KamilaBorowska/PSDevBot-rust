@@ -6,14 +6,15 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use showdown::RoomId;
+use std::sync::Arc;
 use warp::{path, Filter, Rejection};
 use warp_github_webhook::webhook;
 
-pub fn start_server(config: Config, sender: &UnboundedSender) -> oneshot::Sender<()> {
-    let Config { secret, port, .. } = config;
+pub fn start_server(config: Arc<Config>, sender: &UnboundedSender) -> oneshot::Sender<()> {
     let (tx, rx) = oneshot::channel();
+    let port = config.port;
     tokio::spawn(
-        warp::serve(get_route(secret, sender).with(warp::log("webhook")))
+        warp::serve(get_route(config, sender).with(warp::log("webhook")))
             .bind_with_graceful_shutdown(([0, 0, 0, 0], port), rx)
             .1,
     );
@@ -21,30 +22,46 @@ pub fn start_server(config: Config, sender: &UnboundedSender) -> oneshot::Sender
 }
 
 fn get_route(
-    secret: String,
+    config: Arc<Config>,
     sender: &UnboundedSender,
 ) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
     let push_sender = sender.clone();
     let pull_request_sender = sender.clone();
+    let config_clone = config.clone();
     path!("github" / "callback")
         .and(
-            webhook(warp_github_webhook::Kind::PUSH, secret.clone())
-                .and_then(move |push_event| handle_push_event(&push_sender, push_event))
-                .or(
-                    webhook(warp_github_webhook::Kind::PULL_REQUEST, secret).and_then(
-                        move |pull_request| handle_pull_request(&pull_request_sender, pull_request),
-                    ),
-                ),
+            webhook(
+                warp_github_webhook::Kind::PUSH,
+                SecretGetter(config.clone()),
+            )
+            .and_then(move |push_event| handle_push_event(&config_clone, &push_sender, push_event))
+            .or(webhook(
+                warp_github_webhook::Kind::PULL_REQUEST,
+                SecretGetter(config.clone()),
+            )
+            .and_then(move |pull_request| {
+                handle_pull_request(&config, &pull_request_sender, pull_request)
+            })),
         )
         .unify()
 }
 
+#[derive(Clone)]
+struct SecretGetter(Arc<Config>);
+
+impl AsRef<str> for SecretGetter {
+    fn as_ref(&self) -> &str {
+        &self.0.room_name
+    }
+}
+
 fn handle_push_event(
+    config: &Config,
     sender: &UnboundedSender,
     push_event: PushEvent,
 ) -> Result<&'static str, Rejection> {
     sender
-        .send_chat_message(RoomId("botdevelopment"), &push_event.get_message())
+        .send_chat_message(RoomId(&config.room_name), &push_event.get_message())
         .map_err(warp::reject::custom)?;
     Ok("")
 }
@@ -181,11 +198,12 @@ impl Repository {
 }
 
 fn handle_pull_request(
+    config: &Config,
     sender: &UnboundedSender,
     pull_request: PullRequestEvent,
 ) -> Result<&'static str, Rejection> {
     sender
-        .send_chat_message(RoomId("botdevelopment"), &pull_request.get_message())
+        .send_chat_message(RoomId(&config.room_name), &pull_request.get_message())
         .map_err(warp::reject::custom)?;
     Ok("")
 }

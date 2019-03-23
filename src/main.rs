@@ -12,6 +12,7 @@ use sentry::ClientOptions;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, Receiver};
 use std::error::Error;
+use std::sync::Arc;
 use tokio::await;
 use unbounded::UnboundedSender;
 use webhook::start_server;
@@ -56,13 +57,14 @@ async fn run_authenticated(
     mut receiver: Receiver,
     config: Config,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let _server = start_server(config, &sender);
+    let config = Arc::new(config);
+    let _server = start_server(config.clone(), &sender);
     loop {
         let message = await!(receiver.receive())?;
         info!("Received message: {:?}", message);
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.kind() {
             sender.send_global_command("away")?;
-            sender.send_global_command("join bot dev")?;
+            sender.send_global_command(&format!("join {}", config.room_name))?;
         }
     }
 }
