@@ -8,7 +8,7 @@ build:
   before_script: &before
   - apt-get update -y
   - apt-get install build-essential curl libssl-dev pkg-config -y
-  - curl https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2019-02-22
+  - curl https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2019-03-23
   - PATH=~/.cargo/bin:$PATH
   - rustc --version && cargo --version
   script:
