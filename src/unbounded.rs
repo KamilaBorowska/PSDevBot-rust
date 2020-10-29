@@ -4,6 +4,7 @@ use showdown::futures::channel::mpsc::SendError;
 use showdown::futures::stream::SplitSink;
 use showdown::futures::{SinkExt, StreamExt};
 use showdown::{SendMessage, Stream};
+use tokio::time;
 
 #[derive(Clone, Debug)]
 pub struct UnboundedSender {
@@ -19,6 +20,7 @@ impl UnboundedSender {
                 if showdown_sender.send(message).await.is_err() {
                     return;
                 }
+                time::delay_for(time::Duration::from_millis(700)).await;
             }
         });
         Self { sender: tx }

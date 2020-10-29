@@ -13,7 +13,7 @@ regex = "1.4.1"
 sentry = { version = "0.20.1", features = ["env_logger", "log"] }
 serde = { version = "1.0.117", features = ["derive"] }
 showdown = "0.8.0"
-tokio = { version = "0.2.22", features = ["macros", "rt-threaded"] }
+tokio = { version = "0.2.22", features = ["macros", "rt-threaded", "time"] }
 warp = "0.2.5"
 warp_github_webhook = "0.3.0"
 
