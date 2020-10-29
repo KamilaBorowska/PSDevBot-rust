@@ -13,7 +13,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Result<Self, Box<dyn Error>> {
+    pub fn new() -> Result<Self, Box<dyn Error + Send + Sync>> {
         let server = Url::parse(&env::var("PSDEVBOT_SERVER")?)?;
         let user = env::var("PSDEVBOT_USER")?;
         let password = env::var("PSDEVBOT_PASSWORD")?;

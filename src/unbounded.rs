@@ -1,58 +1,30 @@
-use futures::sync::mpsc;
 use log::info;
-use showdown::{RoomId, Sender};
-use std::error::Error;
-use tokio::await;
-use tokio::prelude::*;
+use showdown::futures::channel::mpsc;
+use showdown::futures::channel::mpsc::SendError;
+use showdown::futures::stream::SplitSink;
+use showdown::futures::{SinkExt, StreamExt};
+use showdown::{SendMessage, Stream};
 
 #[derive(Clone, Debug)]
 pub struct UnboundedSender {
-    sender: mpsc::UnboundedSender<Message>,
+    sender: mpsc::UnboundedSender<SendMessage>,
 }
 
 impl UnboundedSender {
-    pub fn new(mut showdown_sender: Sender) -> Self {
-        let (sender, mut receiver) = mpsc::unbounded();
-        tokio::spawn_async(
-            async move {
-                while let Some(message) = await!(receiver.next()) {
-                    info!("Sent message: {:?}", message);
-                    (match message.unwrap() {
-                        Message::GlobalCommand(c) => {
-                            await!(showdown_sender.send_global_command(&c))
-                        }
-                        Message::ChatMessage(r, c) => {
-                            await!(showdown_sender.send_chat_message(RoomId(&r), &c))
-                        }
-                    })
-                    .unwrap()
+    pub fn new(mut showdown_sender: SplitSink<Stream, SendMessage>) -> Self {
+        let (tx, mut rx) = mpsc::unbounded();
+        tokio::spawn(async move {
+            while let Some(message) = rx.next().await {
+                info!("Sent message: {:?}", message);
+                if showdown_sender.send(message).await.is_err() {
+                    return;
                 }
-            },
-        );
-        Self { sender }
+            }
+        });
+        Self { sender: tx }
     }
 
-    pub fn send_chat_message(
-        &self,
-        room_id: RoomId<'_>,
-        message: &str,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.sender.unbounded_send(Message::ChatMessage(
-            room_id.0.to_string(),
-            message.replace('\n', " "),
-        ))?;
-        Ok(())
+    pub async fn send(&self, message: SendMessage) -> Result<(), SendError> {
+        (&self.sender).send(message).await
     }
-
-    pub fn send_global_command(&self, command: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.sender
-            .unbounded_send(Message::GlobalCommand(command.replace('\n', " ")))?;
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
-enum Message {
-    GlobalCommand(String),
-    ChatMessage(String, String),
 }

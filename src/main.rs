@@ -1,70 +1,73 @@
-#![feature(async_await, await_macro, futures_api)]
-#![recursion_limit = "128"]
-
 mod config;
 mod unbounded;
 mod webhook;
 
 use config::Config;
+use env_logger::Logger;
 use log::info;
 use sentry::internals::ClientInitGuard;
 use sentry::ClientOptions;
+use showdown::futures::stream::{SplitStream, StreamExt};
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect_to_url, Receiver};
+use showdown::{connect_to_url, ReceiveExt, SendMessage, Stream};
 use std::error::Error;
 use std::sync::Arc;
-use tokio::await;
 use unbounded::UnboundedSender;
 use webhook::start_server;
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let config = Config::new()?;
     let _sentry = initialize_sentry(&config);
-    tokio::run_async(async move { await!(start(config)).unwrap() });
-    Ok(())
+    start(config).await
 }
 
 fn initialize_sentry(config: &Config) -> ClientInitGuard {
-    let sentry = sentry::init((
+    sentry::init((
         config.sentry_dsn.as_str(),
         ClientOptions {
             release: option_env!("CI_COMMIT_SHA").map(<&str>::into),
             ..ClientOptions::default()
-        },
-    ));
-    sentry::integrations::env_logger::init(None, Default::default());
-    sentry::integrations::panic::register_panic_handler();
-    sentry
+        }
+        .add_integration(
+            sentry::integrations::log::LogIntegration::default()
+                .with_env_logger_dest(Some(Logger::from_default_env())),
+        )
+        .add_integration(sentry::integrations::panic::PanicIntegration::new()),
+    ))
 }
 
 async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let (mut sender, mut receiver) = await!(connect_to_url(&config.server))?;
+    let mut stream = connect_to_url(&config.server).await?;
     loop {
-        if let Kind::Challenge(ch) = await!(receiver.receive())?.kind() {
-            await!(ch.login_with_password(&mut sender, &config.user, &config.password))?;
+        if let Kind::Challenge(ch) = stream.receive().await?.kind() {
+            ch.login_with_password(&mut stream, &config.user, &config.password)
+                .await?;
             break;
         }
     }
-    await!(run_authenticated(
-        UnboundedSender::new(sender),
-        receiver,
-        config,
-    ))
+    let (sender, receiver) = stream.split();
+    run_authenticated(UnboundedSender::new(sender), receiver, config).await
 }
 
 async fn run_authenticated(
     sender: UnboundedSender,
-    mut receiver: Receiver,
+    mut receiver: SplitStream<Stream>,
     config: Config,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let config = Arc::new(config);
     let _server = start_server(config.clone(), &sender);
     loop {
-        let message = await!(receiver.receive())?;
+        let message = receiver.receive().await?;
         info!("Received message: {:?}", message);
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.kind() {
-            sender.send_global_command("away")?;
-            sender.send_global_command(&format!("join {}", config.room_name))?;
+            sender.send(SendMessage::global_command("away")).await?;
+            sender
+                .send(SendMessage::global_command(format_args!(
+                    "join {}",
+                    config.room_name
+                )))
+                .await?;
         }
     }
 }
