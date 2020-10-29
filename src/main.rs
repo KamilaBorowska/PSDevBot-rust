@@ -61,7 +61,6 @@ async fn run_authenticated(
         let message = receiver.receive().await?;
         info!("Received message: {:?}", message);
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.kind() {
-            sender.send(SendMessage::global_command("away")).await?;
             sender
                 .send(SendMessage::global_command(format_args!(
                     "join {}",
