@@ -1,6 +1,8 @@
 use crate::config::Config;
+use crate::github_api::{GitHubApi, User};
 use crate::unbounded::UnboundedSender;
 use htmlescape::encode_minimal as h;
+use if_chain::if_chain;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use serde::Deserialize;
@@ -57,13 +59,21 @@ impl AsRef<str> for SecretGetter {
 }
 
 fn handle_push_event(
-    config: &Config,
+    config: &Arc<Config>,
     sender: &UnboundedSender,
     push_event: PushEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
-    let message = SendMessage::chat_command(RoomId(&config.room_name), &push_event.get_message());
+    let config = config.clone();
     let sender = sender.clone();
     async move {
+        let mut github_api = match &config.github_api {
+            Some(github_api) => Some(github_api.lock().await),
+            None => None,
+        };
+        let message = SendMessage::chat_command(
+            RoomId(&config.room_name),
+            &push_event.get_message(github_api.as_deref_mut()).await,
+        );
         sender
             .send(message)
             .await
@@ -85,7 +95,7 @@ struct PushEvent {
 }
 
 impl PushEvent {
-    fn get_message(&self) -> String {
+    async fn get_message(&self, mut github_api: Option<&mut GitHubApi>) -> String {
         let pushed = if self.created {
             "pushed <font color='red'>in new branch</font>"
         } else if self.forced {
@@ -109,7 +119,9 @@ impl PushEvent {
             branch = h(self.get_branch()),
         );
         for commit in &self.commits {
-            output += &commit.format(&self.repository.html_url);
+            output += &commit
+                .format(&self.repository.html_url, github_api.as_deref_mut())
+                .await;
         }
         output
     }
@@ -131,7 +143,7 @@ struct Commit {
 }
 
 impl Commit {
-    fn format(&self, url: &str) -> String {
+    async fn format(&self, url: &str, github_api: Option<&mut GitHubApi>) -> String {
         let (message, more) = match self.message.find('\n') {
             Some(index) => (&self.message[..index], true),
             None => (&self.message[..], false),
@@ -144,19 +156,30 @@ impl Commit {
             ),
             url = h(&self.url),
             id = &self.id[0..6],
-            author = match &self.author.username {
-                Some(username) => format!(
-                    concat!(
-                        "<a href='https://github.com/{username}'>",
-                        "<img src='https://avatars.githubusercontent.com/{username}?s=54' ",
-                        "width=18 height=18 style='vertical-align: bottom; border-radius: 50%'> ",
-                        "{formatted_name}",
-                        "</a>",
-                    ),
-                    username = h(username),
-                    formatted_name = formatted_name,
-                ),
-                None => formatted_name,
+            author = if_chain! {
+                if let Some(username) = &self.author.username;
+                if let Some(github_api) = github_api;
+                if let Some(User {
+                    html_url,
+                    avatar_url,
+                }) = github_api.fetch_user(username).await;
+                then {
+                    format!(
+                        concat!(
+                            "<a href='{html_url}'>",
+                            "<img src='{avatar_url}?s=54' ",
+                            "width=18 height=18 ",
+                            "style='vertical-align: bottom; border-radius: 50%'> ",
+                            "{formatted_name}",
+                            "</a>",
+                        ),
+                        html_url = h(html_url),
+                        avatar_url = h(avatar_url),
+                        formatted_name = formatted_name,
+                    )
+                } else {
+                    formatted_name
+                }
             },
             message = format_title(message, url),
             more = if more { "\u{2026}" } else { "" },
@@ -279,8 +302,8 @@ struct Sender {
 mod test {
     use super::{Author, Commit, PullRequest, PullRequestEvent, Repository, Sender};
 
-    #[test]
-    fn test_commit() {
+    #[tokio::test]
+    async fn test_commit() {
         let commit = Commit {
             id: "0da2590a700d054fc2ce39ddc9c95f360329d9be".into(),
             message: "Hello, world!".into(),
@@ -291,14 +314,11 @@ mod test {
             url: "http://example.com".into(),
         };
         assert_eq!(
-            commit.format("shouldn't be used"),
+            commit.format("shouldn't be used", None).await,
             concat!(
                 "<br /><a href='http://example.com'>",
                 "<font color='606060'><kbd>0da259</kbd></font></a> ",
-                "<a href='https://github.com/xfix'>",
-                "<img src='https://avatars.githubusercontent.com/xfix?s=54' ",
-                "width=18 height=18 style='vertical-align: bottom; border-radius: 50%'> ",
-                "<font color='909090'>Konrad Borowski</font></a>: ",
+                "<font color='909090'>Konrad Borowski</font>: ",
                 "Hello, world!",
             ),
         );

@@ -1,3 +1,5 @@
+use crate::github_api::GitHubApi;
+use showdown::futures::lock::Mutex;
 use showdown::url::Url;
 use std::env;
 use std::error::Error;
@@ -9,6 +11,7 @@ pub struct Config {
     pub secret: String,
     pub port: u16,
     pub room_name: String,
+    pub github_api: Option<Mutex<GitHubApi>>,
 }
 
 impl Config {
@@ -22,6 +25,10 @@ impl Config {
             Err(_) => 3030,
         };
         let room_name = env::var("PSDEVBOT_ROOM")?;
+        let github_api = env::var("PSDEVBOT_GITHUB_API_USER").ok().and_then(|user| {
+            let password = env::var("PSDEVBOT_GITHUB_API_PASSWORD").ok()?;
+            Some(Mutex::new(GitHubApi::new(user, password)))
+        });
         Ok(Self {
             server,
             user,
@@ -29,6 +36,7 @@ impl Config {
             secret,
             port,
             room_name,
+            github_api,
         })
     }
 }
