@@ -23,6 +23,7 @@ impl GitHubApi {
         }
     }
 
+    #[allow(clippy::ptr_arg)] // due to LruCache limitations accepting &String is necessary.
     pub async fn fetch_user(&mut self, user_name: &String) -> Option<&User> {
         if !self.cache.contains(user_name) {
             info!("Fetching user `{}` from GitHub", user_name);
