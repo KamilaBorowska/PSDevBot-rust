@@ -146,7 +146,13 @@ impl Commit {
             id = &self.id[0..6],
             author = match &self.author.username {
                 Some(username) => format!(
-                    "<a href='https://github.com/{username}'>{formatted_name}</a>",
+                    concat!(
+                        "<a href='https://github.com/{username}'>",
+                        "<img src='https://avatars.githubusercontent.com/{username}?s=54' ",
+                        "width=18 height=18 style='vertical-align: bottom; border-radius: 50%'> ",
+                        "{formatted_name}",
+                        "</a>",
+                    ),
                     username = h(username),
                     formatted_name = formatted_name,
                 ),
@@ -290,6 +296,8 @@ mod test {
                 "<br /><a href='http://example.com'>",
                 "<font color='606060'>0da259</font></a> ",
                 "<a href='https://github.com/xfix'>",
+                "<img src='https://avatars.githubusercontent.com/xfix?s=54' ",
+                "width=18 height=18 style='vertical-align: bottom; border-radius: 50%'> ",
                 "<font color='909090'>Konrad Borowski</font></a>: ",
                 "Hello, world!",
             ),
