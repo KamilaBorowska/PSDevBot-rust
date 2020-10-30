@@ -219,9 +219,8 @@ struct Repository {
 impl Repository {
     fn format(&self) -> String {
         let repo = match self.name.as_str() {
-            "Pokemon-Showdown" => "server",
-            "Pokemon-Showdown-Client" => "client",
-            "Pokemon-Showdown-Dex" => "dex",
+            "pokemon-showdown" => "server",
+            "pokemon-showdown-client" => "client",
             repo => repo,
         };
         format!(
