@@ -52,7 +52,7 @@ struct SecretGetter(Arc<Config>);
 
 impl AsRef<str> for SecretGetter {
     fn as_ref(&self) -> &str {
-        &self.0.room_name
+        &self.0.secret
     }
 }
 
