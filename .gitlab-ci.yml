@@ -1,62 +1,27 @@
-stages:
-- build
-- staging
-
-build:
-  stage: build
-  image: ubuntu:latest
-  before_script: &before
-  - apt-get update -y
-  - apt-get install build-essential curl libssl-dev pkg-config -y
-  - curl https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2019-03-23
-  - PATH=~/.cargo/bin:$PATH
-  - rustc --version && cargo --version
-  script:
-  - cargo build --release --verbose
-  artifacts:
-    paths:
-    - target/release/psdevbot-rust
-
-test:
-  stage: build
-  image: ubuntu:latest
-  before_script: *before
-  script:
+test:1.45:
+  script: &test_script
+  - &print_version rustc --version && cargo --version
   - cargo test --verbose
+  image: rust:1.45
 
-rustfmt:
-  stage: build
-  image: ubuntu:latest
-  before_script: *before
-  script:
-  - rustup component add rustfmt
-  - cargo fmt -- --check
+test:stable:
+  script: *test_script
+  image: rust:latest
+
+test:nightly:
+  script: *test_script
+  image: rustlang/rust:nightly
 
 clippy:
-  stage: build
-  image: ubuntu:latest
-  before_script: *before
   script:
+  - *print_version
   - rustup component add clippy
   - cargo clippy --verbose
+  image: rust:latest
 
-staging:
-  stage: staging
-  image: ubuntu:latest
-  dependencies:
-  - build
+rustfmt:
   script:
-  - apt-get update -y
-  - apt-get install openssh-client git -y
-  - eval $(ssh-agent -s)
-  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
-  - mkdir -p ~/.ssh
-  - chmod 700 ~/.ssh
-  - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-  - chmod 644 ~/.ssh/known_hosts
-  - DATE="$(TZ=GMT git show -s --format='%cd' --date=iso-strict-local)"
-  - scp target/release/psdevbot-rust psdevbot-staging@ssh.xfix.pw:releases/"$DATE"
-  - printf "#!/bin/sh\nexec releases/%s\n" "$DATE" | ssh psdevbot-staging@ssh.xfix.pw tee run
-  - ssh psdevbot-staging@ssh.xfix.pw systemctl restart --user psdevbot
-  only:
-  - master
+  - *print_version
+  - rustup component add rustfmt
+  - cargo fmt -- --check
+  image: rust:latest
