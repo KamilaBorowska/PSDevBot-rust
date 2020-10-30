@@ -152,7 +152,7 @@ impl Commit {
         format!(
             concat!(
                 "<br /><a href='{url}'><font color='606060'><kbd>{id}</kbd></font></a> ",
-                "{author}: {message}{more}",
+                "{author}: <span title='{full_message}'>{message}{more}</span>",
             ),
             url = h(&self.url),
             id = &self.id[0..6],
@@ -181,6 +181,7 @@ impl Commit {
                     formatted_name
                 }
             },
+            full_message = h(&self.message).replace('\n', "&#10;"),
             message = format_title(message, url),
             more = if more { "\u{2026}" } else { "" },
         )
