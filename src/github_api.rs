@@ -2,6 +2,7 @@ use log::info;
 use lru::LruCache;
 use reqwest::{header, Client};
 use serde::Deserialize;
+use std::time::Duration;
 
 pub struct GitHubApi {
     user: String,
@@ -17,6 +18,7 @@ impl GitHubApi {
             password,
             cache: LruCache::new(100),
             client: Client::builder()
+                .timeout(Duration::from_secs(5))
                 .user_agent("psdevbot-rust")
                 .build()
                 .unwrap(),
