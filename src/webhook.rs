@@ -95,7 +95,7 @@ impl PushEvent {
         };
         let mut output = format!(
             concat!(
-                "/addhtmlbox {repo} <a href='https://github.com/{pusher}'>",
+                "addhtmlbox {repo} <a href='https://github.com/{pusher}'>",
                 "<font color='909090'>{pusher}</font></a> ",
                 "{pushed} <a href='{compare}'><b>{commits}</b> new ",
                 "commit{s}</a> to <font color='800080'>{branch}</font>",
@@ -208,7 +208,7 @@ fn handle_pull_request(
     sender: &UnboundedSender,
     pull_request: PullRequestEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
-    let message = SendMessage::chat_message(RoomId(&config.room_name), &pull_request.get_message());
+    let message = SendMessage::chat_command(RoomId(&config.room_name), &pull_request.get_message());
     let sender = sender.clone();
     async move {
         sender
@@ -237,7 +237,7 @@ impl PullRequestEvent {
         let escaped_action;
         format!(
             concat!(
-                "/addhtmlbox {repo} <a href='https://github.com/{author}'>",
+                "addhtmlbox {repo} <a href='https://github.com/{author}'>",
                 "<font color='909090'>{author}</font></a> {action} pull request ",
                 "<a href='{url}'>#{number}</a>: {title}",
             ),
@@ -314,7 +314,7 @@ mod test {
         assert_eq!(
             event.get_message(),
             concat!(
-                "/addhtmlbox [<a href='http://example.com/'><font color='FF00FF'>",
+                "addhtmlbox [<a href='http://example.com/'><font color='FF00FF'>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
                 "color='909090'>Me</font></a> created pull request ",
                 "<a href='http://example.com/pr/1'>#1</a>: Hello, world",
