@@ -61,7 +61,7 @@ fn handle_push_event(
     sender: &UnboundedSender,
     push_event: PushEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
-    let message = SendMessage::chat_message(RoomId(&config.room_name), &push_event.get_message());
+    let message = SendMessage::chat_command(RoomId(&config.room_name), &push_event.get_message());
     let sender = sender.clone();
     async move {
         sender
