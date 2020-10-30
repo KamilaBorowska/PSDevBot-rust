@@ -10,12 +10,8 @@ htmlescape = "0.3.1"
 lazy_static = "1.4.0"
 log = "0.4.11"
 regex = "1.4.1"
-sentry = { version = "0.20.1", features = ["env_logger", "log"] }
 serde = { version = "1.0.117", features = ["derive"] }
 showdown = "0.8.0"
 tokio = { version = "0.2.22", features = ["macros", "rt-threaded", "time"] }
 warp = "0.2.5"
 warp_github_webhook = "0.3.0"
-
-[profile.release]
-debug = true

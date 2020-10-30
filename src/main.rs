@@ -3,10 +3,7 @@ mod unbounded;
 mod webhook;
 
 use config::Config;
-use env_logger::Logger;
 use log::info;
-use sentry::internals::ClientInitGuard;
-use sentry::ClientOptions;
 use showdown::futures::stream::{SplitStream, StreamExt};
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, ReceiveExt, SendMessage, Stream};
@@ -18,23 +15,8 @@ use webhook::start_server;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let config = Config::new()?;
-    let _sentry = initialize_sentry(&config);
+    env_logger::init();
     start(config).await
-}
-
-fn initialize_sentry(config: &Config) -> ClientInitGuard {
-    sentry::init((
-        config.sentry_dsn.as_str(),
-        ClientOptions {
-            release: option_env!("CI_COMMIT_SHA").map(<&str>::into),
-            ..ClientOptions::default()
-        }
-        .add_integration(
-            sentry::integrations::log::LogIntegration::default()
-                .with_env_logger_dest(Some(Logger::from_default_env())),
-        )
-        .add_integration(sentry::integrations::panic::PanicIntegration::new()),
-    ))
 }
 
 async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
