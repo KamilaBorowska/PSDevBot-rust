@@ -139,7 +139,7 @@ impl Commit {
         let formatted_name = format!("<font color='909090'>{}</font>", h(&self.author.name));
         format!(
             concat!(
-                "<br /><a href='{url}'><font color='606060'>{id}</font></a> ",
+                "<br /><a href='{url}'><font color='606060'><kbd>{id}</kbd></font></a> ",
                 "{author}: {message}{more}",
             ),
             url = h(&self.url),
@@ -294,7 +294,7 @@ mod test {
             commit.format("shouldn't be used"),
             concat!(
                 "<br /><a href='http://example.com'>",
-                "<font color='606060'>0da259</font></a> ",
+                "<font color='606060'><kbd>0da259</kbd></font></a> ",
                 "<a href='https://github.com/xfix'>",
                 "<img src='https://avatars.githubusercontent.com/xfix?s=54' ",
                 "width=18 height=18 style='vertical-align: bottom; border-radius: 50%'> ",
