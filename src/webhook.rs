@@ -79,8 +79,8 @@ fn handle_push_event(
             Some(github_api) => Some(github_api.lock().await),
             None => None,
         };
-        let message = SendMessage::chat_command(
-            RoomId(&config.room_name),
+        let message = html_command(
+            &config.room_name,
             &push_event.get_message(github_api.as_deref_mut()).await,
         );
         sender
@@ -257,8 +257,7 @@ fn handle_pull_request(
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
     let number = pull_request.pull_request.number;
     if skip_pull_requests.insert(number) {
-        let message =
-            SendMessage::chat_command(RoomId(&config.room_name), &pull_request.get_message());
+        let message = html_command(&config.room_name, &pull_request.get_message());
         let skip_pull_requests = skip_pull_requests.clone();
         let sender = sender.clone();
         async move {
@@ -326,6 +325,11 @@ struct PullRequest {
 #[derive(Debug, Deserialize)]
 struct Sender {
     login: String,
+}
+
+fn html_command(room_id: &str, input: &str) -> SendMessage {
+    // Workaround for https://github.com/smogon/pokemon-showdown/pull/7611
+    SendMessage::chat_command(RoomId(room_id), input.replace("here", "her&#101;"))
 }
 
 #[cfg(test)]
