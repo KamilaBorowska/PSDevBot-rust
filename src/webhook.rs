@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::github_api::{GitHubApi, User};
 use crate::unbounded::UnboundedSender;
+use dashmap::DashSet;
 use htmlescape::encode_minimal as h;
 use if_chain::if_chain;
 use lazy_static::lazy_static;
@@ -10,6 +11,8 @@ use showdown::futures::channel::oneshot;
 use showdown::futures::{Future, FutureExt};
 use showdown::{RoomId, SendMessage};
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time;
 use warp::reject::Reject;
 use warp::{path, Filter, Rejection};
 use warp_github_webhook::webhook;
@@ -32,6 +35,7 @@ fn get_route(
     let push_sender = sender.clone();
     let pull_request_sender = sender.clone();
     let config_clone = config.clone();
+    let skip_pull_requests = Arc::new(DashSet::new());
     path!("github" / "callback").and(
         webhook(
             warp_github_webhook::Kind::PUSH,
@@ -43,7 +47,12 @@ fn get_route(
             SecretGetter(config.clone()),
         )
         .and_then(move |pull_request| {
-            handle_pull_request(&config, &pull_request_sender, pull_request)
+            handle_pull_request(
+                &config,
+                &skip_pull_requests,
+                &pull_request_sender,
+                pull_request,
+            )
         }))
         .unify(),
     )
@@ -242,17 +251,30 @@ impl Repository {
 
 fn handle_pull_request(
     config: &Config,
+    skip_pull_requests: &Arc<DashSet<u32>>,
     sender: &UnboundedSender,
     pull_request: PullRequestEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
-    let message = SendMessage::chat_command(RoomId(&config.room_name), &pull_request.get_message());
-    let sender = sender.clone();
-    async move {
-        sender
-            .send(message)
-            .await
-            .map_err(|_| warp::reject::custom(ChannelError))?;
-        Ok("")
+    let number = pull_request.pull_request.number;
+    if skip_pull_requests.insert(number) {
+        let message =
+            SendMessage::chat_command(RoomId(&config.room_name), &pull_request.get_message());
+        let skip_pull_requests = skip_pull_requests.clone();
+        let sender = sender.clone();
+        async move {
+            tokio::spawn(async move {
+                time::delay_for(Duration::from_secs(10 * 60)).await;
+                skip_pull_requests.remove(&number);
+            });
+            sender
+                .send(message)
+                .await
+                .map_err(|_| warp::reject::custom(ChannelError))?;
+            Ok("")
+        }
+        .left_future()
+    } else {
+        async { Ok("") }.right_future()
     }
 }
 
