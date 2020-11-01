@@ -1,0 +1,9 @@
+{% match github_metadata %}
+    {%- when Some with (github) -%}
+        <a href='{{ github.html_url }}'>
+            <img src='{{ github.avatar_url }}?s=54' width=18 height=18 style='vertical-align: bottom; border-radius: 50%'>
+            {{ username -}}
+        </a>
+    {%- when None -%}
+        {{ username }}
+{%- endmatch %}

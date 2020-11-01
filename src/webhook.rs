@@ -4,7 +4,6 @@ use crate::unbounded::UnboundedSender;
 use askama::Template;
 use dashmap::DashSet;
 use htmlescape::encode_minimal as h;
-use if_chain::if_chain;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use serde::Deserialize;
@@ -129,9 +128,10 @@ impl PushEvent {
             branch = h(self.get_branch()),
         );
         for commit in &self.commits {
-            output += &commit
-                .format(&self.repository.html_url, github_api.as_deref_mut())
+            let commit_view = commit
+                .to_view(&self.repository.html_url, github_api.as_deref_mut())
                 .await;
+            output += &format!("<br>{}", commit_view);
         }
         output
     }
@@ -153,57 +153,35 @@ struct Commit {
 }
 
 impl Commit {
-    async fn format(&self, url: &str, github_api: Option<&mut GitHubApi>) -> String {
-        let (message, more) = match self.message.find('\n') {
-            Some(index) => (&self.message[..index], true),
-            None => (&self.message[..], false),
+    async fn to_view<'a>(
+        &'a self,
+        url: &str,
+        github_api: Option<&'a mut GitHubApi>,
+    ) -> ViewCommit<'a> {
+        let message = match self.message.find('\n') {
+            Some(index) => &self.message[..index],
+            None => &self.message[..],
         };
-        let formatted_name = if let Some(username) = &self.author.username {
-            format!(
-                "<font color='909090' title='{}'>{}</font>",
-                h(&self.author.name),
-                h(username),
-            )
-        } else {
-            format!("<font color='909090'>{}</font>", h(&self.author.name))
-        };
-        format!(
-            concat!(
-                "<br /><a href='{url}'><font color='606060'><kbd>{id}</kbd></font></a> ",
-                "{author}: <span title='{full_message}'>{message}{more}</span>",
-            ),
-            url = h(&self.url),
-            id = &self.id[0..6],
-            author = if_chain! {
-                if let Some(username) = &self.author.username;
-                if let Some(github_api) = github_api;
-                if let Some(User {
-                    html_url,
-                    avatar_url,
-                }) = github_api.fetch_user(username).await;
-                then {
-                    format!(
-                        concat!(
-                            "<a href='{html_url}'>",
-                            "<img src='{avatar_url}?s=54' ",
-                            "width=18 height=18 ",
-                            "style='vertical-align: bottom; border-radius: 50%'> ",
-                            "{formatted_name}",
-                            "</a>",
-                        ),
-                        html_url = h(html_url),
-                        avatar_url = h(avatar_url),
-                        formatted_name = formatted_name,
-                    )
-                } else {
-                    formatted_name
-                }
-            },
-            full_message = h(&self.message).replace('\n', "&#10;"),
-            message = format_title(message, url),
-            more = if more { "\u{2026}" } else { "" },
-        )
+        ViewCommit {
+            id: &self.id[..6],
+            message,
+            full_message: &self.message,
+            formatted_message: format_title(message, url),
+            author: self.author.to_view(github_api).await,
+            url: &self.url,
+        }
     }
+}
+
+#[derive(Template)]
+#[template(path = "commit.html")]
+struct ViewCommit<'a> {
+    id: &'a str,
+    message: &'a str,
+    full_message: &'a str,
+    formatted_message: String,
+    author: ViewAuthor<'a>,
+    url: &'a str,
 }
 
 fn format_title(message: &str, url: &str) -> String {
@@ -227,6 +205,42 @@ struct Pusher {
 struct Author {
     name: String,
     username: Option<String>,
+}
+
+impl Author {
+    async fn to_view<'a>(&'a self, github_api: Option<&'a mut GitHubApi>) -> ViewAuthor<'a> {
+        let username = if let Some(username) = &self.username {
+            let github_metadata = if let Some(github_api) = github_api {
+                github_api.fetch_user(username).await
+            } else {
+                None
+            };
+            Some(Username {
+                username,
+                github_metadata,
+            })
+        } else {
+            None
+        };
+        ViewAuthor {
+            name: &self.name,
+            username,
+        }
+    }
+}
+
+#[derive(Template)]
+#[template(path = "author.html")]
+struct ViewAuthor<'a> {
+    name: &'a str,
+    username: Option<Username<'a>>,
+}
+
+#[derive(Template)]
+#[template(path = "username.html")]
+struct Username<'a> {
+    username: &'a str,
+    github_metadata: Option<&'a User>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -357,11 +371,11 @@ mod test {
             url: "http://example.com".into(),
         };
         assert_eq!(
-            commit.format("shouldn't be used", None).await,
+            commit.to_view("shouldn't be used", None).await.to_string(),
             concat!(
-                "<br /><a href='http://example.com'>",
-                "<font color='606060'><kbd>0da259</kbd></font></a> ",
-                "<font color='909090' title='Konrad Borowski'>xfix</font>: ",
+                "<a href='http:&#x2f;&#x2f;example.com'>",
+                "<font color=606060><kbd>0da259</kbd></font></a>\n",
+                "<font color=909090 title='Konrad Borowski'>xfix</font>: ",
                 "<span title='Hello, world!'>Hello, world!</span>",
             ),
         );
