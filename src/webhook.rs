@@ -375,7 +375,7 @@ mod test {
             concat!(
                 "<a href='http:&#x2f;&#x2f;example.com'>",
                 "<font color=606060><kbd>0da259</kbd></font></a>\n",
-                "<font color=909090 title='Konrad Borowski'>xfix</font>: ",
+                r#"<span title="Konrad Borowski"><font color=909090>xfix</font></span>: "#,
                 "<span title='Hello, world!'>Hello, world!</span>",
             ),
         );

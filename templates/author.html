@@ -1,6 +1,4 @@
-<font color=909090
-    {%- match username %}
-        {%- when Some with (username) %} title='{{ name }}'>{{ username|safe }}
-        {%- when None -%} >{{ name }}
-    {%- endmatch -%}
-</font>
+{% match username -%}
+    {%- when Some with (username) -%} <span title="{{ name }}">{{ username|safe }}</span>
+    {%- when None -%} <font color=909090>{{ name }}</font>
+{%- endmatch %}
