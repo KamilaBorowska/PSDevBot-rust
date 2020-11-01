@@ -120,7 +120,7 @@ impl PushEvent {
                 "{pushed} <a href='{compare}'><b>{commits}</b> new ",
                 "commit{s}</a> to <font color='800080'>{branch}</font>",
             ),
-            repo = self.repository.format(),
+            repo = self.repository.to_view(),
             pusher = h(&self.pusher.name),
             pushed = pushed,
             compare = h(&self.compare),
@@ -236,18 +236,24 @@ struct Repository {
 }
 
 impl Repository {
-    fn format(&self) -> String {
-        let repo = match self.name.as_str() {
+    fn to_view(&self) -> ViewRepository<'_> {
+        let name = match self.name.as_str() {
             "pokemon-showdown" => "server",
             "pokemon-showdown-client" => "client",
-            repo => repo,
+            name => name,
         };
-        format!(
-            "[<a href='{url}'><font color='FF00FF'>{name}</font></a>]",
-            url = h(&self.html_url),
-            name = h(repo),
-        )
+        ViewRepository {
+            name,
+            html_url: &self.html_url,
+        }
     }
+}
+
+#[derive(Template)]
+#[template(path = "repository.html")]
+struct ViewRepository<'a> {
+    name: &'a str,
+    html_url: &'a str,
 }
 
 fn handle_pull_request(
@@ -300,7 +306,7 @@ impl PullRequestEvent {
                 "<font color='909090'>{author}</font></a> {action} ",
                 "{pull_request}",
             ),
-            repo = self.repository.format(),
+            repo = self.repository.to_view(),
             author = h(&self.sender.login),
             action = match self.action.as_str() {
                 "synchronize" => "updated",
@@ -376,7 +382,7 @@ mod test {
         assert_eq!(
             event.get_message(),
             concat!(
-                "addhtmlbox [<a href='http://example.com/'><font color='FF00FF'>",
+                "addhtmlbox [<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
                 "color='909090'>Me</font></a> created pull request ",
                 "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>#1</a>: Hello, world",
