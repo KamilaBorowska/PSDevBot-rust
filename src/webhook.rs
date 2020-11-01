@@ -264,7 +264,10 @@ fn handle_pull_request(
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
     let number = pull_request.pull_request.number;
     if skip_pull_requests.insert(number) {
-        let message = html_command(&config.room_name, &pull_request.get_message());
+        let message = html_command(
+            &config.room_name,
+            &format!("addhtmlbox {}", pull_request.to_view()),
+        );
         let skip_pull_requests = skip_pull_requests.clone();
         let sender = sender.clone();
         async move {
@@ -298,26 +301,26 @@ struct PullRequestEvent {
 }
 
 impl PullRequestEvent {
-    fn get_message(&self) -> String {
-        let escaped_action;
-        format!(
-            concat!(
-                "addhtmlbox {repo} <a href='https://github.com/{author}'>",
-                "<font color='909090'>{author}</font></a> {action} ",
-                "{pull_request}",
-            ),
-            repo = self.repository.to_view(),
-            author = h(&self.sender.login),
-            action = match self.action.as_str() {
+    fn to_view(&self) -> ViewPullRequestEvent<'_> {
+        ViewPullRequestEvent {
+            action: match self.action.as_str() {
                 "synchronize" => "updated",
-                action => {
-                    escaped_action = h(action);
-                    &escaped_action
-                }
+                action => action,
             },
-            pull_request = self.pull_request,
-        )
+            pull_request: &self.pull_request,
+            repository: self.repository.to_view(),
+            sender: &self.sender,
+        }
     }
+}
+
+#[derive(Template)]
+#[template(path = "pull_request_event.html")]
+struct ViewPullRequestEvent<'a> {
+    action: &'a str,
+    pull_request: &'a PullRequest,
+    repository: ViewRepository<'a>,
+    sender: &'a Sender,
 }
 
 #[derive(Debug, Deserialize, Template)]
@@ -380,9 +383,9 @@ mod test {
             sender: Sender { login: "Me".into() },
         };
         assert_eq!(
-            event.get_message(),
+            event.to_view().to_string(),
             concat!(
-                "addhtmlbox [<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
+                "[<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
                 "color='909090'>Me</font></a> created pull request ",
                 "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>#1</a>: Hello, world",
