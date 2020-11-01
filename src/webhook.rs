@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::github_api::{GitHubApi, User};
 use crate::unbounded::UnboundedSender;
+use askama::Template;
 use dashmap::DashSet;
 use htmlescape::encode_minimal as h;
 use if_chain::if_chain;
@@ -296,8 +297,8 @@ impl PullRequestEvent {
         format!(
             concat!(
                 "addhtmlbox {repo} <a href='https://github.com/{author}'>",
-                "<font color='909090'>{author}</font></a> {action} pull request ",
-                "<a href='{url}'>#{number}</a>: {title}",
+                "<font color='909090'>{author}</font></a> {action} ",
+                "{pull_request}",
             ),
             repo = self.repository.format(),
             author = h(&self.sender.login),
@@ -308,14 +309,13 @@ impl PullRequestEvent {
                     &escaped_action
                 }
             },
-            url = h(&self.pull_request.html_url),
-            number = self.pull_request.number,
-            title = format_title(&self.pull_request.title, &self.repository.html_url),
+            pull_request = self.pull_request,
         )
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Template)]
+#[template(path = "pull_request.html")]
 struct PullRequest {
     number: u32,
     html_url: String,
@@ -379,7 +379,7 @@ mod test {
                 "addhtmlbox [<a href='http://example.com/'><font color='FF00FF'>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
                 "color='909090'>Me</font></a> created pull request ",
-                "<a href='http://example.com/pr/1'>#1</a>: Hello, world",
+                "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>#1</a>: Hello, world",
             ),
         );
     }

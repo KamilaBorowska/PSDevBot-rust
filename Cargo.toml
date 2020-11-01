@@ -5,6 +5,7 @@ authors = ["Konrad Borowski <konrad@borowski.pw>"]
 edition = "2018"
 
 [dependencies]
+askama = "0.10.3"
 dashmap = "3.11.10"
 env_logger = "0.7.1"
 htmlescape = "0.3.1"
