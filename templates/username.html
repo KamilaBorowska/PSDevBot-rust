@@ -2,8 +2,7 @@
     {%- when Some with (github) -%}
         <a href='{{ github.html_url }}'>
             <img src='{{ github.avatar_url }}?s=54' width=18 height=18 style='vertical-align: bottom; border-radius: 50%'>
-            <font color=909090>{{ username }}</font>
-        </a>
+            <font color=909090>{{ username }}</font></a>
     {%- when None -%}
     <font color=909090>{{ username }}</font>
 {%- endmatch %}
