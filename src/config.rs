@@ -1,8 +1,11 @@
 use crate::github_api::GitHubApi;
+use serde::Deserialize;
 use showdown::futures::lock::Mutex;
 use showdown::url::Url;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::error::Error;
+use std::slice;
 
 pub struct Config {
     pub server: Url,
@@ -10,8 +13,14 @@ pub struct Config {
     pub password: String,
     pub secret: String,
     pub port: u16,
-    pub room_name: String,
+    default_room_name: Option<String>,
+    room_configuration: HashMap<String, RoomConfiguration>,
     pub github_api: Option<Mutex<GitHubApi>>,
+}
+
+#[derive(Deserialize)]
+pub struct RoomConfiguration {
+    pub rooms: Vec<String>,
 }
 
 impl Config {
@@ -24,7 +33,16 @@ impl Config {
             Ok(port) => port.parse()?,
             Err(_) => 3030,
         };
-        let room_name = env::var("PSDEVBOT_ROOM")?;
+        let default_room_name = env::var("PSDEVBOT_ROOM").ok();
+        let room_configuration = env::var("PSDEVBOT_PROJECT_CONFIGURATION")
+            .map(|json| {
+                serde_json::from_str(&json)
+                    .expect("PSDEVBOT_PROJECT_CONFIGURATION should be valid JSON")
+            })
+            .ok();
+        if default_room_name.is_none() && room_configuration.is_none() {
+            panic!("At least one of PSDEVBOT_ROOM or PSDEVBOT_PROJECT_CONFIGURATION needs to be provided");
+        }
         let github_api = env::var("PSDEVBOT_GITHUB_API_USER").ok().and_then(|user| {
             let password = env::var("PSDEVBOT_GITHUB_API_PASSWORD").ok()?;
             Some(Mutex::new(GitHubApi::new(user, password)))
@@ -35,8 +53,29 @@ impl Config {
             password,
             secret,
             port,
-            room_name,
+            default_room_name,
+            room_configuration: room_configuration.unwrap_or_default(),
             github_api,
         })
+    }
+
+    pub fn all_rooms(&self) -> HashSet<&str> {
+        self.room_configuration
+            .values()
+            .flat_map(|r| &r.rooms)
+            .chain(&self.default_room_name)
+            .map(String::as_str)
+            .collect()
+    }
+
+    pub fn rooms_for(&self, name: &str) -> &[String] {
+        if let Some(configuration) = self.room_configuration.get(name) {
+            &configuration.rooms
+        } else {
+            self.default_room_name
+                .as_ref()
+                .map(slice::from_ref)
+                .unwrap_or_default()
+        }
     }
 }

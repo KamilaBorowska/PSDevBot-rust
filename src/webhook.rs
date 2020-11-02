@@ -79,14 +79,16 @@ fn handle_push_event(
             Some(github_api) => Some(github_api.lock().await),
             None => None,
         };
-        let message = html_command(
-            &config.room_name,
-            &push_event.get_message(github_api.as_deref_mut()).await,
-        );
-        sender
-            .send(message)
-            .await
-            .map_err(|_| warp::reject::custom(ChannelError))?;
+        for room in config.rooms_for(&push_event.repository.full_name) {
+            let message = html_command(
+                room,
+                &push_event.get_message(github_api.as_deref_mut()).await,
+            );
+            sender
+                .send(message)
+                .await
+                .map_err(|_| warp::reject::custom(ChannelError))?;
+        }
         Ok("")
     }
 }
@@ -245,6 +247,7 @@ struct Username<'a> {
 
 #[derive(Debug, Deserialize)]
 struct Repository {
+    full_name: String,
     name: String,
     html_url: String,
 }
@@ -271,28 +274,28 @@ struct ViewRepository<'a> {
 }
 
 fn handle_pull_request(
-    config: &Config,
+    config: &Arc<Config>,
     skip_pull_requests: &Arc<DashSet<u32>>,
     sender: &UnboundedSender,
     pull_request: PullRequestEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
     let number = pull_request.pull_request.number;
     if skip_pull_requests.insert(number) {
-        let message = html_command(
-            &config.room_name,
-            &format!("addhtmlbox {}", pull_request.to_view()),
-        );
         let skip_pull_requests = skip_pull_requests.clone();
+        tokio::spawn(async move {
+            time::delay_for(Duration::from_secs(10 * 60)).await;
+            skip_pull_requests.remove(&number);
+        });
         let sender = sender.clone();
+        let config = config.clone();
         async move {
-            tokio::spawn(async move {
-                time::delay_for(Duration::from_secs(10 * 60)).await;
-                skip_pull_requests.remove(&number);
-            });
-            sender
-                .send(message)
-                .await
-                .map_err(|_| warp::reject::custom(ChannelError))?;
+            for room in config.rooms_for(&pull_request.repository.full_name) {
+                let message = html_command(room, &format!("addhtmlbox {}", pull_request.to_view()));
+                sender
+                    .send(message)
+                    .await
+                    .map_err(|_| warp::reject::custom(ChannelError))?;
+            }
             Ok("")
         }
         .left_future()
@@ -392,6 +395,7 @@ mod test {
             },
             repository: Repository {
                 name: "ExampleCom".into(),
+                full_name: "Super/ExampleCom".into(),
                 html_url: "http://example.com/".into(),
             },
             sender: Sender { login: "Me".into() },

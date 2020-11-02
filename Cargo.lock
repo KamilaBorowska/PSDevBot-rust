@@ -1086,6 +1086,7 @@ dependencies = [
  "regex",
  "reqwest",
  "serde",
+ "serde_json",
  "showdown",
  "tokio",
  "warp",
