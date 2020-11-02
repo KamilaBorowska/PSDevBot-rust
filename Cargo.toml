@@ -18,5 +18,5 @@ serde = { version = "1.0.117", features = ["derive"] }
 serde_json = "1.0.59"
 showdown = "0.8.0"
 tokio = { version = "0.2.22", features = ["macros", "rt-threaded", "time"] }
-warp = "0.2.5"
+warp = { version = "0.2.5", default-features = false }
 warp_github_webhook = "0.3.0"
