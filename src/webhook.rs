@@ -4,7 +4,7 @@ use crate::unbounded::UnboundedSender;
 use askama::Template;
 use dashmap::DashSet;
 use htmlescape::encode_minimal as h;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use showdown::futures::channel::oneshot;
@@ -187,12 +187,9 @@ struct ViewCommit<'a> {
 }
 
 fn format_title(message: &str, url: &str) -> String {
-    let message = h(message);
-    lazy_static! {
-        static ref ISSUE_PATTERN: Regex = Regex::new(r#"#([0-9]+)"#).unwrap();
-    }
+    static ISSUE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"#([0-9]+)"#).unwrap());
     ISSUE_PATTERN
-        .replace_all(&message, |c: &Captures<'_>| {
+        .replace_all(&h(message), |c: &Captures<'_>| {
             format!("<a href='{}/issues/{}'>{}</a>", h(url), h(&c[1]), h(&c[0]))
         })
         .to_string()
