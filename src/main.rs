@@ -9,7 +9,6 @@ use showdown::futures::stream::{SplitStream, StreamExt};
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, ReceiveExt, SendMessage, Stream};
 use std::error::Error;
-use std::sync::Arc;
 use unbounded::UnboundedSender;
 use webhook::start_server;
 
@@ -38,8 +37,8 @@ async fn run_authenticated(
     mut receiver: SplitStream<Stream>,
     config: Config,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let config = Arc::new(config);
-    let _server = start_server(config.clone(), &sender);
+    let config = Box::leak(Box::new(config));
+    let _server = start_server(config, &sender);
     loop {
         let message = receiver.receive().await?;
         info!("Received message: {:?}", message);

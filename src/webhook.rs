@@ -10,14 +10,13 @@ use serde::Deserialize;
 use showdown::futures::channel::oneshot;
 use showdown::futures::{Future, FutureExt};
 use showdown::{RoomId, SendMessage};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 use warp::reject::Reject;
 use warp::{path, Filter, Rejection};
 use warp_github_webhook::webhook;
 
-pub fn start_server(config: Arc<Config>, sender: &UnboundedSender) -> oneshot::Sender<()> {
+pub fn start_server(config: &'static Config, sender: &UnboundedSender) -> oneshot::Sender<()> {
     let (tx, rx) = oneshot::channel();
     let port = config.port;
     tokio::spawn(
@@ -29,37 +28,33 @@ pub fn start_server(config: Arc<Config>, sender: &UnboundedSender) -> oneshot::S
 }
 
 fn get_route(
-    config: Arc<Config>,
+    config: &'static Config,
     sender: &UnboundedSender,
 ) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
     let push_sender = sender.clone();
     let pull_request_sender = sender.clone();
-    let config_clone = config.clone();
-    let skip_pull_requests = Arc::new(DashSet::new());
+    let skip_pull_requests = &*Box::leak(Box::new(DashSet::new()));
     path!("github" / "callback").and(
-        webhook(
-            warp_github_webhook::Kind::PUSH,
-            SecretGetter(config.clone()),
-        )
-        .and_then(move |push_event| handle_push_event(&config_clone, &push_sender, push_event))
-        .or(webhook(
-            warp_github_webhook::Kind::PULL_REQUEST,
-            SecretGetter(config.clone()),
-        )
-        .and_then(move |pull_request| {
-            handle_pull_request(
-                &config,
-                &skip_pull_requests,
-                &pull_request_sender,
-                pull_request,
+        webhook(warp_github_webhook::Kind::PUSH, SecretGetter(config))
+            .and_then(move |push_event| handle_push_event(config, &push_sender, push_event))
+            .or(webhook(
+                warp_github_webhook::Kind::PULL_REQUEST,
+                SecretGetter(config),
             )
-        }))
-        .unify(),
+            .and_then(move |pull_request| {
+                handle_pull_request(
+                    config,
+                    skip_pull_requests,
+                    &pull_request_sender,
+                    pull_request,
+                )
+            }))
+            .unify(),
     )
 }
 
 #[derive(Clone)]
-struct SecretGetter(Arc<Config>);
+struct SecretGetter(&'static Config);
 
 impl AsRef<str> for SecretGetter {
     fn as_ref(&self) -> &str {
@@ -68,11 +63,10 @@ impl AsRef<str> for SecretGetter {
 }
 
 fn handle_push_event(
-    config: &Arc<Config>,
+    config: &'static Config,
     sender: &UnboundedSender,
     push_event: PushEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
-    let config = config.clone();
     let sender = sender.clone();
     async move {
         let mut github_api = match &config.github_api {
@@ -271,20 +265,18 @@ struct ViewRepository<'a> {
 }
 
 fn handle_pull_request(
-    config: &Arc<Config>,
-    skip_pull_requests: &Arc<DashSet<u32>>,
+    config: &'static Config,
+    skip_pull_requests: &'static DashSet<u32>,
     sender: &UnboundedSender,
     pull_request: PullRequestEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
     let number = pull_request.pull_request.number;
     if skip_pull_requests.insert(number) {
-        let skip_pull_requests = skip_pull_requests.clone();
         tokio::spawn(async move {
             time::delay_for(Duration::from_secs(10 * 60)).await;
             skip_pull_requests.remove(&number);
         });
         let sender = sender.clone();
-        let config = config.clone();
         async move {
             for room in config.rooms_for(&pull_request.repository.full_name) {
                 let message = html_command(room, &format!("addhtmlbox {}", pull_request.to_view()));
