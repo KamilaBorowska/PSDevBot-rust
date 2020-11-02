@@ -38,7 +38,8 @@ async fn run_authenticated(
     config: Config,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let config = Box::leak(Box::new(config));
-    let _server = start_server(config, &sender);
+    let sender = Box::leak(Box::new(sender));
+    let _server = start_server(config, sender);
     loop {
         let message = receiver.receive().await?;
         info!("Received message: {:?}", message);

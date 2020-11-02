@@ -16,7 +16,10 @@ use warp::reject::Reject;
 use warp::{path, Filter, Rejection};
 use warp_github_webhook::webhook;
 
-pub fn start_server(config: &'static Config, sender: &UnboundedSender) -> oneshot::Sender<()> {
+pub fn start_server(
+    config: &'static Config,
+    sender: &'static UnboundedSender,
+) -> oneshot::Sender<()> {
     let (tx, rx) = oneshot::channel();
     let port = config.port;
     tokio::spawn(
@@ -29,25 +32,18 @@ pub fn start_server(config: &'static Config, sender: &UnboundedSender) -> onesho
 
 fn get_route(
     config: &'static Config,
-    sender: &UnboundedSender,
+    sender: &'static UnboundedSender,
 ) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
-    let push_sender = sender.clone();
-    let pull_request_sender = sender.clone();
     let skip_pull_requests = &*Box::leak(Box::new(DashSet::new()));
     path!("github" / "callback").and(
         webhook(warp_github_webhook::Kind::PUSH, SecretGetter(config))
-            .and_then(move |push_event| handle_push_event(config, &push_sender, push_event))
+            .and_then(move |push_event| handle_push_event(config, sender, push_event))
             .or(webhook(
                 warp_github_webhook::Kind::PULL_REQUEST,
                 SecretGetter(config),
             )
             .and_then(move |pull_request| {
-                handle_pull_request(
-                    config,
-                    skip_pull_requests,
-                    &pull_request_sender,
-                    pull_request,
-                )
+                handle_pull_request(config, skip_pull_requests, sender, pull_request)
             }))
             .unify(),
     )
@@ -64,10 +60,9 @@ impl AsRef<str> for SecretGetter {
 
 fn handle_push_event(
     config: &'static Config,
-    sender: &UnboundedSender,
+    sender: &'static UnboundedSender,
     push_event: PushEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
-    let sender = sender.clone();
     async move {
         let mut github_api = match &config.github_api {
             Some(github_api) => Some(github_api.lock().await),
@@ -267,7 +262,7 @@ struct ViewRepository<'a> {
 fn handle_pull_request(
     config: &'static Config,
     skip_pull_requests: &'static DashSet<u32>,
-    sender: &UnboundedSender,
+    sender: &'static UnboundedSender,
     pull_request: PullRequestEvent,
 ) -> impl Future<Output = Result<&'static str, Rejection>> {
     let number = pull_request.pull_request.number;
@@ -276,7 +271,6 @@ fn handle_pull_request(
             time::delay_for(Duration::from_secs(10 * 60)).await;
             skip_pull_requests.remove(&number);
         });
-        let sender = sender.clone();
         async move {
             for room in config.rooms_for(&pull_request.repository.full_name) {
                 let message = html_command(room, &format!("addhtmlbox {}", pull_request.to_view()));
