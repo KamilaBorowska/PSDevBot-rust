@@ -58,28 +58,26 @@ impl AsRef<str> for SecretGetter {
     }
 }
 
-fn handle_push_event(
+async fn handle_push_event(
     config: &'static Config,
     sender: &'static UnboundedSender,
     push_event: PushEvent,
-) -> impl Future<Output = Result<&'static str, Rejection>> {
-    async move {
-        let mut github_api = match &config.github_api {
-            Some(github_api) => Some(github_api.lock().await),
-            None => None,
-        };
-        for room in config.rooms_for(&push_event.repository.full_name) {
-            let message = html_command(
-                room,
-                &push_event.get_message(github_api.as_deref_mut()).await,
-            );
-            sender
-                .send(message)
-                .await
-                .map_err(|_| warp::reject::custom(ChannelError))?;
-        }
-        Ok("")
+) -> Result<&'static str, Rejection> {
+    let mut github_api = match &config.github_api {
+        Some(github_api) => Some(github_api.lock().await),
+        None => None,
+    };
+    for room in config.rooms_for(&push_event.repository.full_name) {
+        let message = html_command(
+            room,
+            &push_event.get_message(github_api.as_deref_mut()).await,
+        );
+        sender
+            .send(message)
+            .await
+            .map_err(|_| warp::reject::custom(ChannelError))?;
     }
+    Ok("")
 }
 
 #[derive(Debug, Deserialize)]
