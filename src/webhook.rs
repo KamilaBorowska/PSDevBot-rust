@@ -110,7 +110,7 @@ impl PushEvent {
                 "{pushed} <a href='{compare}'><b>{commits}</b> new ",
                 "commit{s}</a> to <font color='800080'>{branch}</font>",
             ),
-            repo = self.repository.to_view(),
+            repo = self.repository,
             pusher = h(&self.pusher.name),
             pushed = pushed,
             compare = h(&self.compare),
@@ -231,32 +231,12 @@ struct Username<'a> {
     github_metadata: Option<&'a User>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Template)]
+#[template(path = "repository.html")]
 struct Repository {
     full_name: String,
     name: String,
     html_url: String,
-}
-
-impl Repository {
-    fn to_view(&self) -> ViewRepository<'_> {
-        let name = match self.name.as_str() {
-            "pokemon-showdown" => "server",
-            "pokemon-showdown-client" => "client",
-            name => name,
-        };
-        ViewRepository {
-            name,
-            html_url: &self.html_url,
-        }
-    }
-}
-
-#[derive(Template)]
-#[template(path = "repository.html")]
-struct ViewRepository<'a> {
-    name: &'a str,
-    html_url: &'a str,
 }
 
 fn handle_pull_request(
@@ -308,7 +288,7 @@ impl PullRequestEvent {
                 action => action,
             },
             pull_request: &self.pull_request,
-            repository: self.repository.to_view(),
+            repository: &self.repository,
             sender: &self.sender,
         }
     }
@@ -319,7 +299,7 @@ impl PullRequestEvent {
 struct ViewPullRequestEvent<'a> {
     action: &'a str,
     pull_request: &'a PullRequest,
-    repository: ViewRepository<'a>,
+    repository: &'a Repository,
     sender: &'a Sender,
 }
 
