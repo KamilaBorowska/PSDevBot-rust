@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 use showdown::futures::channel::oneshot;
-use showdown::futures::{Future, FutureExt};
+use showdown::futures::FutureExt;
 use showdown::{RoomId, SendMessage};
 use std::time::Duration;
 use tokio::time;
@@ -237,32 +237,27 @@ struct Repository {
     html_url: String,
 }
 
-fn handle_pull_request(
+async fn handle_pull_request(
     config: &'static Config,
     skip_pull_requests: &'static DashSet<u32>,
     sender: &'static UnboundedSender,
     pull_request: PullRequestEvent,
-) -> impl Future<Output = Result<&'static str, Rejection>> {
+) -> Result<&'static str, Rejection> {
     let number = pull_request.pull_request.number;
     if skip_pull_requests.insert(number) {
         tokio::spawn(async move {
             time::delay_for(Duration::from_secs(10 * 60)).await;
             skip_pull_requests.remove(&number);
         });
-        async move {
-            for room in config.rooms_for(&pull_request.repository.full_name) {
-                let message = html_command(room, &format!("addhtmlbox {}", pull_request.to_view()));
-                sender
-                    .send(message)
-                    .await
-                    .map_err(|_| warp::reject::custom(ChannelError))?;
-            }
-            Ok("")
+        for room in config.rooms_for(&pull_request.repository.full_name) {
+            let message = html_command(room, &format!("addhtmlbox {}", pull_request.to_view()));
+            sender
+                .send(message)
+                .await
+                .map_err(|_| warp::reject::custom(ChannelError))?;
         }
-        .left_future()
-    } else {
-        async { Ok("") }.right_future()
     }
+    Ok("")
 }
 
 #[derive(Debug)]
