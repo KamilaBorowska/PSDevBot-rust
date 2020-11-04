@@ -1,8 +1,8 @@
 use log::info;
-use showdown::futures::channel::mpsc;
-use showdown::futures::channel::mpsc::SendError;
-use showdown::futures::stream::SplitSink;
-use showdown::futures::{SinkExt, StreamExt};
+use futures::channel::mpsc;
+use futures::channel::mpsc::SendError;
+use futures::stream::SplitSink;
+use futures::{SinkExt, StreamExt};
 use showdown::{SendMessage, Stream};
 use tokio::time;
 

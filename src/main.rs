@@ -5,7 +5,7 @@ mod webhook;
 
 use config::Config;
 use log::info;
-use showdown::futures::stream::{SplitStream, StreamExt};
+use futures::stream::{SplitStream, StreamExt};
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, ReceiveExt, SendMessage, Stream};
 use std::error::Error;

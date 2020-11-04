@@ -1,6 +1,6 @@
 use crate::github_api::GitHubApi;
 use serde::Deserialize;
-use showdown::futures::lock::Mutex;
+use futures::lock::Mutex;
 use showdown::url::Url;
 use std::collections::{HashMap, HashSet};
 use std::env;
