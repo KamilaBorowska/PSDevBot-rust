@@ -4,8 +4,8 @@ mod unbounded;
 mod webhook;
 
 use config::Config;
-use log::info;
 use futures::stream::{SplitStream, StreamExt};
+use log::info;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, ReceiveExt, SendMessage, Stream};
 use std::error::Error;
