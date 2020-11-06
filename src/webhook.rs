@@ -149,7 +149,7 @@ impl Commit {
     ) -> ViewCommit<'a> {
         let message = match self.message.find('\n') {
             Some(index) => &self.message[..index],
-            None => &self.message[..],
+            None => &self.message,
         };
         ViewCommit {
             id: &self.id[..6],
