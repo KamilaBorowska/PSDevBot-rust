@@ -176,7 +176,7 @@ struct ViewCommit<'a> {
 fn format_title(message: &str, url: &str) -> String {
     static ISSUE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"#([0-9]+)"#).unwrap());
     ISSUE_PATTERN
-        .replace_all(&h(message), |c: &Captures<'_>| {
+        .replace_all(&h(message), |c: &Captures| {
             format!("<a href='{}/issues/{}'>{}</a>", h(url), h(&c[1]), &c[0])
         })
         .to_string()
