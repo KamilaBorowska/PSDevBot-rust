@@ -126,10 +126,7 @@ impl PushEvent {
     }
 
     fn get_branch(&self) -> &str {
-        match self.git_ref.rfind('/') {
-            Some(index) => &self.git_ref[index + 1..],
-            None => &self.git_ref,
-        }
+        self.git_ref.rsplit('/').next().unwrap()
     }
 }
 
@@ -147,10 +144,7 @@ impl Commit {
         url: &str,
         github_api: Option<&'a mut GitHubApi>,
     ) -> ViewCommit<'a> {
-        let message = match self.message.find('\n') {
-            Some(index) => &self.message[..index],
-            None => &self.message,
-        };
+        let message = self.message.split('\n').next().unwrap();
         ViewCommit {
             id: &self.id[..6],
             message,
