@@ -79,3 +79,31 @@ impl Config {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::Config;
+    use std::collections::HashMap;
+
+    fn base_config() -> Config {
+        Config {
+            server: "wss://localhost/showdown/websocket".parse().unwrap(),
+            user: "".into(),
+            password: "".into(),
+            secret: "".into(),
+            port: 3030,
+            default_room_name: None,
+            room_configuration: HashMap::new(),
+            github_api: None,
+        }
+    }
+
+    #[test]
+    fn test_all_rooms_default_room() {
+        let mut config = base_config();
+        config.default_room_name = Some("room".into());
+        let mut rooms: Vec<_> = config.all_rooms().into_iter().collect();
+        rooms.sort();
+        assert_eq!(rooms, ["room"]);
+    }
+}
