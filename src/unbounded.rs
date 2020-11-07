@@ -1,9 +1,8 @@
 use futures::channel::mpsc;
 use futures::channel::mpsc::SendError;
-use futures::stream::SplitSink;
-use futures::{SinkExt, StreamExt};
+use futures::{Sink, SinkExt, StreamExt};
 use log::info;
-use showdown::{SendMessage, Stream};
+use showdown::SendMessage;
 use tokio::time;
 
 #[derive(Clone, Debug)]
@@ -12,7 +11,7 @@ pub struct UnboundedSender {
 }
 
 impl UnboundedSender {
-    pub fn new(mut showdown_sender: SplitSink<Stream, SendMessage>) -> Self {
+    pub fn new(mut showdown_sender: impl Sink<SendMessage> + Send + Unpin + 'static) -> Self {
         let (tx, mut rx) = mpsc::unbounded();
         tokio::spawn(async move {
             while let Some(message) = rx.next().await {
