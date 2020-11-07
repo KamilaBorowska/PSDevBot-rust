@@ -82,7 +82,7 @@ impl Config {
 
 #[cfg(test)]
 mod test {
-    use super::Config;
+    use super::{Config, RoomConfiguration};
     use std::collections::HashMap;
 
     fn base_config() -> Config {
@@ -105,5 +105,28 @@ mod test {
         let mut rooms: Vec<_> = config.all_rooms().into_iter().collect();
         rooms.sort();
         assert_eq!(rooms, ["room"]);
+    }
+
+    #[test]
+    fn test_all_rooms_room_configuration() {
+        let mut config = base_config();
+        config.room_configuration.insert(
+            "Project".into(),
+            RoomConfiguration {
+                rooms: vec!["a".into(), "b".into()],
+            },
+        );
+        config.room_configuration.insert(
+            "AnotherProject".into(),
+            RoomConfiguration {
+                rooms: vec!["b".into(), "c".into()],
+            },
+        );
+        config
+            .room_configuration
+            .insert("StupidProject".into(), RoomConfiguration { rooms: vec![] });
+        let mut rooms: Vec<_> = config.all_rooms().into_iter().collect();
+        rooms.sort();
+        assert_eq!(rooms, ["a", "b", "c"]);
     }
 }
