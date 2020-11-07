@@ -67,15 +67,17 @@ async fn handle_push_event(
         Some(github_api) => Some(github_api.lock().await),
         None => None,
     };
-    for room in config.rooms_for(&push_event.repository.full_name) {
-        let message = html_command(
-            room,
-            &push_event.get_message(github_api.as_deref_mut()).await,
-        );
-        sender
-            .send(message)
-            .await
-            .map_err(|_| warp::reject::custom(ChannelError))?;
+    if push_event.repository.default_branch == push_event.get_branch() {
+        for room in config.rooms_for(&push_event.repository.full_name) {
+            let message = html_command(
+                room,
+                &push_event.get_message(github_api.as_deref_mut()).await,
+            );
+            sender
+                .send(message)
+                .await
+                .map_err(|_| warp::reject::custom(ChannelError))?;
+        }
     }
     Ok("")
 }
@@ -84,7 +86,6 @@ async fn handle_push_event(
 struct PushEvent {
     #[serde(rename = "ref")]
     git_ref: String,
-    created: bool,
     forced: bool,
     commits: Vec<Commit>,
     compare: String,
@@ -94,9 +95,7 @@ struct PushEvent {
 
 impl PushEvent {
     async fn get_message(&self, mut github_api: Option<&mut GitHubApi>) -> String {
-        let pushed = if self.created {
-            "pushed <font color='red'>in new branch</font>"
-        } else if self.forced {
+        let pushed = if self.forced {
             "<font color='red'>force-pushed</font>"
         } else {
             "pushed"
@@ -106,7 +105,7 @@ impl PushEvent {
                 "addhtmlbox {repo} <a href='https://github.com/{pusher}'>",
                 "<font color='909090'>{pusher}</font></a> ",
                 "{pushed} <a href='{compare}'><b>{commits}</b> new ",
-                "commit{s}</a> to <font color='800080'>{branch}</font>",
+                "commit{s}</a>",
             ),
             repo = self.repository,
             pusher = h(&self.pusher.name),
@@ -114,7 +113,6 @@ impl PushEvent {
             compare = h(&self.compare),
             commits = self.commits.len(),
             s = if self.commits.len() == 1 { "" } else { "s" },
-            branch = h(self.get_branch()),
         );
         for commit in &self.commits {
             let commit_view = commit
@@ -229,6 +227,7 @@ struct Repository {
     full_name: String,
     name: String,
     html_url: String,
+    default_branch: String,
 }
 
 async fn handle_pull_request(
@@ -347,6 +346,7 @@ mod test {
                 name: "ExampleCom".into(),
                 full_name: "Super/ExampleCom".into(),
                 html_url: "http://example.com/".into(),
+                default_branch: "master".into(),
             },
             sender: Sender { login: "Me".into() },
         };
