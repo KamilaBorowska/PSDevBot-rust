@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 askama = "0.10.3"
 dashmap = "3.11.10"
+dotenv = "0.15.0"
 env_logger = "0.8.1"
 futures = { version = "0.3.7", default-features = false, features = [ "std" ] }
 htmlescape = "0.3.1"
