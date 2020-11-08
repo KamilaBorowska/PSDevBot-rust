@@ -230,6 +230,13 @@ struct Repository {
     default_branch: String,
 }
 
+const IGNORE_ACTIONS: &[&str] = &[
+    "ready_for_review",
+    "labeled",
+    "unlabeled",
+    "converted_to_draft",
+];
+
 async fn handle_pull_request(
     config: &'static Config,
     skip_pull_requests: &'static DashSet<u32>,
@@ -237,7 +244,7 @@ async fn handle_pull_request(
     pull_request: PullRequestEvent,
 ) -> Result<&'static str, Rejection> {
     let number = pull_request.pull_request.number;
-    if skip_pull_requests.insert(number) {
+    if !IGNORE_ACTIONS.contains(&&pull_request.action[..]) && skip_pull_requests.insert(number) {
         tokio::spawn(async move {
             time::delay_for(Duration::from_secs(10 * 60)).await;
             skip_pull_requests.remove(&number);
