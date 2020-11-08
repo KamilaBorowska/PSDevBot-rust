@@ -271,6 +271,7 @@ impl PullRequestEvent {
         ViewPullRequestEvent {
             action: match self.action.as_str() {
                 "synchronize" => "updated",
+                "review_requested" => "requested a review for",
                 action => action,
             },
             pull_request: &self.pull_request,
