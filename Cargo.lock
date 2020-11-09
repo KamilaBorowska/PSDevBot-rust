@@ -495,16 +495,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "github_webhook_message_validator"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bd778ad54e44f189f4e1b770955b7c5a415e6082270947049eb1607223f00ba"
-dependencies = [
- "hmac",
- "sha-1 0.9.2",
-]
-
-[[package]]
 name = "h2"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1296,6 +1286,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e7aab86fe2149bad8c507606bdb3f4ef5e7b2380eb92350f56122cca72a42a8"
+dependencies = [
+ "block-buffer 0.9.0",
+ "cfg-if 1.0.0",
+ "cpuid-bool",
+ "digest 0.9.0",
+ "opaque-debug 0.3.0",
+]
+
+[[package]]
 name = "showdown"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1663,15 +1666,16 @@ dependencies = [
 
 [[package]]
 name = "warp_github_webhook"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e61360622b4ead3a3ce0b2d48ed390afdfea732eafbdd54308aa83701b03a1e"
+checksum = "105f976d09a9652bf887d1f7849d3eb059c6208f1a253d7ea9db4295228b9367"
 dependencies = [
  "bytes",
- "github_webhook_message_validator",
  "hex",
+ "hmac",
  "serde",
  "serde_json",
+ "sha2",
  "warp",
 ]
 
