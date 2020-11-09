@@ -1034,10 +1034,13 @@ name = "psdevbot-rust"
 version = "0.1.0"
 dependencies = [
  "askama",
+ "bytes",
  "dashmap",
  "dotenv",
  "env_logger",
  "futures",
+ "hex",
+ "hmac",
  "htmlescape",
  "log",
  "lru",
@@ -1046,10 +1049,10 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "showdown",
  "tokio",
  "warp",
- "warp_github_webhook",
 ]
 
 [[package]]
@@ -1662,21 +1665,6 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "urlencoding",
-]
-
-[[package]]
-name = "warp_github_webhook"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "105f976d09a9652bf887d1f7849d3eb059c6208f1a253d7ea9db4295228b9367"
-dependencies = [
- "bytes",
- "hex",
- "hmac",
- "serde",
- "serde_json",
- "sha2",
- "warp",
 ]
 
 [[package]]

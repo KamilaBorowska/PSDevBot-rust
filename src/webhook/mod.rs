@@ -2,16 +2,21 @@ mod schema;
 
 use crate::config::Config;
 use crate::unbounded::UnboundedSender;
+use bytes::Bytes;
 use dashmap::DashSet;
 use futures::channel::oneshot;
 use futures::FutureExt;
-use schema::{PullRequestEvent, PushEvent};
+use hmac::{Hmac, Mac, NewMac};
+use log::info;
+use schema::{PullRequestEvent, PushEvent, Repository};
+use serde::de::DeserializeOwned;
+use sha2::Sha256;
 use showdown::{RoomId, SendMessage};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::time::Duration;
 use tokio::time;
 use warp::reject::Reject;
 use warp::{path, Filter, Rejection};
-use warp_github_webhook::webhook;
 
 pub fn start_server(
     config: &'static Config,
@@ -32,51 +37,78 @@ fn get_route(
     sender: &'static UnboundedSender,
 ) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
     let skip_pull_requests = &*Box::leak(Box::new(DashSet::new()));
-    path!("github" / "callback").and(
-        webhook(warp_github_webhook::Kind::PUSH, SecretGetter(config))
-            .and_then(move |push_event| handle_push_event(config, sender, push_event))
-            .or(webhook(
-                warp_github_webhook::Kind::PULL_REQUEST,
-                SecretGetter(config),
-            )
-            .and_then(move |pull_request| {
-                handle_pull_request(config, skip_pull_requests, sender, pull_request)
-            }))
-            .unify(),
-    )
+    path!("github" / "callback")
+        .and(warp::header::optional("X-Hub-Signature-256"))
+        .and(warp::header("X-GitHub-Event"))
+        .and(warp::body::bytes())
+        .and_then(move |signature, event: String, bytes: Bytes| async move {
+            info!("Got event {}", event);
+            let rooms = get_rooms(config, signature, &bytes)?;
+            match event.as_str() {
+                "push" => handle_push_event(config, sender, rooms, json(&bytes)?).await?,
+                "pull_request" => {
+                    handle_pull_request(skip_pull_requests, sender, rooms, json(&bytes)?).await?
+                }
+                _ => {}
+            }
+            Ok::<_, Rejection>("")
+        })
 }
 
-#[derive(Clone)]
-struct SecretGetter(&'static Config);
+fn get_rooms<'a>(
+    config: &'a Config,
+    signature: Option<String>,
+    bytes: &[u8],
+) -> Result<&'a [String], Rejection> {
+    let repository: Repository = json(bytes)?;
+    let (rooms, secret) = config.rooms_for(&repository.full_name);
+    verify_signature(secret, signature, bytes)?;
+    Ok(rooms)
+}
 
-impl AsRef<str> for SecretGetter {
-    fn as_ref(&self) -> &str {
-        &self.0.secret
+fn verify_signature(
+    secret: &str,
+    signature: Option<String>,
+    bytes: &[u8],
+) -> Result<(), Rejection> {
+    if !secret.is_empty() {
+        let signature = signature.ok_or_else(|| reject("Missing signature"))?;
+        let signature = signature
+            .strip_prefix("sha256=")
+            .ok_or_else(|| reject("Signature doesn't start with sha256="))?;
+        let signature = hex::decode(signature).map_err(reject)?;
+        let mut mac =
+            Hmac::<Sha256>::new_varkey(secret.as_bytes()).expect("HMAC can take a key of any size");
+        mac.update(bytes);
+        mac.verify(&signature).map_err(reject)?;
     }
+    Ok(())
+}
+
+fn json<T: DeserializeOwned>(input: &[u8]) -> Result<T, Rejection> {
+    serde_json::from_slice(input).map_err(reject)
 }
 
 async fn handle_push_event(
     config: &'static Config,
     sender: &'static UnboundedSender,
+    rooms: &[String],
     push_event: PushEvent,
-) -> Result<&'static str, Rejection> {
+) -> Result<(), Rejection> {
     let mut github_api = match &config.github_api {
         Some(github_api) => Some(github_api.lock().await),
         None => None,
     };
     if push_event.repository.default_branch == push_event.get_branch() {
-        for room in config.rooms_for(&push_event.repository.full_name) {
+        for room in rooms {
             let message = html_command(
                 room,
                 &push_event.get_message(github_api.as_deref_mut()).await,
             );
-            sender
-                .send(message)
-                .await
-                .map_err(|_| warp::reject::custom(ChannelError))?;
+            sender.send(message).await.map_err(reject)?;
         }
     }
-    Ok("")
+    Ok(())
 }
 
 const IGNORE_ACTIONS: &[&str] = &[
@@ -87,32 +119,38 @@ const IGNORE_ACTIONS: &[&str] = &[
 ];
 
 async fn handle_pull_request(
-    config: &'static Config,
     skip_pull_requests: &'static DashSet<u32>,
     sender: &'static UnboundedSender,
+    rooms: &[String],
     pull_request: PullRequestEvent,
-) -> Result<&'static str, Rejection> {
+) -> Result<(), Rejection> {
     let number = pull_request.pull_request.number;
     if !IGNORE_ACTIONS.contains(&&pull_request.action[..]) && skip_pull_requests.insert(number) {
         tokio::spawn(async move {
             time::delay_for(Duration::from_secs(10 * 60)).await;
             skip_pull_requests.remove(&number);
         });
-        for room in config.rooms_for(&pull_request.repository.full_name) {
+        for room in rooms {
             let message = html_command(room, &format!("addhtmlbox {}", pull_request.to_view()));
-            sender
-                .send(message)
-                .await
-                .map_err(|_| warp::reject::custom(ChannelError))?;
+            sender.send(message).await.map_err(reject)?;
         }
     }
-    Ok("")
+    Ok(())
 }
 
-#[derive(Debug)]
-struct ChannelError;
+fn reject<T: Display + Send + Sync + 'static>(error: T) -> Rejection {
+    warp::reject::custom(ErrorRejection(error))
+}
 
-impl Reject for ChannelError {}
+struct ErrorRejection<T>(T);
+
+impl<T: Display> Debug for ErrorRejection<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<T: Display + Send + Sync + 'static> Reject for ErrorRejection<T> {}
 
 fn html_command(room_id: &str, input: &str) -> SendMessage {
     // Workaround for https://github.com/smogon/pokemon-showdown/pull/7611
