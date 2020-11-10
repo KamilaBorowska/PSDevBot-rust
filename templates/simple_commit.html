@@ -2,4 +2,4 @@
     {{- (full_message|escape).to_string().replace("\n", "&#10;")|safe -}}
 '>{{ message }}{% if message != full_message -%}
    &hellip; 
-{%- endif %}</span> <font color=909090>{{ author|safe }}</font>
+{%- endif %}</a> <font color=909090>{{ author|safe }}</font>
