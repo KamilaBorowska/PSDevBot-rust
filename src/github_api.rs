@@ -52,5 +52,4 @@ impl GitHubApi {
 #[derive(Deserialize)]
 pub struct User {
     pub html_url: String,
-    pub avatar_url: String,
 }
