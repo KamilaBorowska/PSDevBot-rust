@@ -78,6 +78,7 @@ impl<'de> Deserialize<'de> for UsernameAliases {
 }
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RoomConfiguration {
     #[serde(default)]
     pub rooms: Vec<String>,
