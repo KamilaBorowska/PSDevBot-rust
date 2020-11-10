@@ -8,7 +8,7 @@ use futures::channel::oneshot;
 use futures::FutureExt;
 use hmac::{Hmac, Mac, NewMac};
 use log::info;
-use schema::{PullRequestEvent, PushEvent, InitialPayload};
+use schema::{InitialPayload, PullRequestEvent, PushEvent};
 use serde::de::DeserializeOwned;
 use sha2::Sha256;
 use showdown::{RoomId, SendMessage};
