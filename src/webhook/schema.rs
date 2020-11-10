@@ -5,26 +5,33 @@ use htmlescape::encode_minimal as h;
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use serde::Deserialize;
+use std::borrow::Cow;
 
 #[derive(Deserialize)]
-pub struct InitialPayload {
-    pub repository: InitialRepository,
+pub struct InitialPayload<'a> {
+    #[serde(borrow)]
+    pub repository: InitialRepository<'a>,
 }
 
 #[derive(Deserialize)]
-pub struct InitialRepository {
-    pub full_name: String,
+pub struct InitialRepository<'a> {
+    #[serde(borrow)]
+    pub full_name: Cow<'a, str>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PushEvent {
-    #[serde(rename = "ref")]
-    git_ref: String,
+pub struct PushEvent<'a> {
+    #[serde(borrow, rename = "ref")]
+    git_ref: Cow<'a, str>,
     forced: bool,
-    commits: Vec<Commit>,
-    compare: String,
-    pusher: Pusher,
-    pub repository: Repository,
+    #[serde(borrow)]
+    commits: Vec<Commit<'a>>,
+    #[serde(borrow)]
+    compare: Cow<'a, str>,
+    #[serde(borrow)]
+    pusher: Pusher<'a>,
+    #[serde(borrow)]
+    pub repository: Repository<'a>,
 }
 
 pub struct PushEventContext<'a> {
@@ -32,7 +39,7 @@ pub struct PushEventContext<'a> {
     pub username_aliases: &'a UsernameAliases,
 }
 
-impl PushEvent {
+impl PushEvent<'_> {
     pub async fn get_message(&self, mut ctx: PushEventContext<'_>) -> String {
         let pushed = if self.forced {
             "<font color='red'>force-pushed</font>"
@@ -66,14 +73,18 @@ impl PushEvent {
 }
 
 #[derive(Debug, Deserialize)]
-struct Commit {
-    id: String,
-    message: String,
-    author: Author,
-    url: String,
+struct Commit<'a> {
+    #[serde(borrow)]
+    id: Cow<'a, str>,
+    #[serde(borrow)]
+    message: Cow<'a, str>,
+    #[serde(borrow)]
+    author: Author<'a>,
+    #[serde(borrow)]
+    url: Cow<'a, str>,
 }
 
-impl Commit {
+impl Commit<'_> {
     async fn to_view<'a>(&'a self, url: &str, ctx: &'a mut PushEventContext<'_>) -> ViewCommit<'a> {
         let message = self.message.split('\n').next().unwrap();
         ViewCommit {
@@ -108,17 +119,19 @@ fn format_title(message: &str, url: &str) -> String {
 }
 
 #[derive(Debug, Deserialize)]
-struct Pusher {
-    name: String,
+struct Pusher<'a> {
+    #[serde(borrow)]
+    name: Cow<'a, str>,
 }
 
 #[derive(Debug, Deserialize)]
-struct Author {
-    name: String,
+struct Author<'a> {
+    #[serde(borrow)]
+    name: Cow<'a, str>,
     username: Option<String>,
 }
 
-impl Author {
+impl Author<'_> {
     async fn to_view<'a>(&'a self, ctx: &'a mut PushEventContext<'_>) -> ViewAuthor<'a> {
         let username = if let Some(username) = &self.username {
             let github_metadata = if let Some(github_api) = &mut ctx.github_api {
@@ -156,27 +169,34 @@ struct Username<'a> {
 
 #[derive(Debug, Deserialize, Template)]
 #[template(path = "repository.html")]
-pub struct Repository {
-    name: String,
-    html_url: String,
-    pub default_branch: String,
+pub struct Repository<'a> {
+    #[serde(borrow)]
+    name: Cow<'a, str>,
+    #[serde(borrow)]
+    html_url: Cow<'a, str>,
+    #[serde(borrow)]
+    pub default_branch: Cow<'a, str>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PullRequestEvent {
-    pub action: String,
-    pub pull_request: PullRequest,
-    pub repository: Repository,
-    sender: Sender,
+pub struct PullRequestEvent<'a> {
+    #[serde(borrow)]
+    pub action: Cow<'a, str>,
+    #[serde(borrow)]
+    pub pull_request: PullRequest<'a>,
+    #[serde(borrow)]
+    pub repository: Repository<'a>,
+    #[serde(borrow)]
+    sender: Sender<'a>,
 }
 
-impl PullRequestEvent {
+impl PullRequestEvent<'_> {
     pub fn to_view<'a>(
         &'a self,
         username_aliases: &'a UsernameAliases,
     ) -> ViewPullRequestEvent<'a> {
         ViewPullRequestEvent {
-            action: match self.action.as_str() {
+            action: match &*self.action {
                 "synchronize" => "updated",
                 "review_requested" => "requested a review for",
                 action => action,
@@ -192,25 +212,28 @@ impl PullRequestEvent {
 #[template(path = "pull_request_event.html")]
 pub struct ViewPullRequestEvent<'a> {
     action: &'a str,
-    pull_request: &'a PullRequest,
-    repository: &'a Repository,
+    pull_request: &'a PullRequest<'a>,
+    repository: &'a Repository<'a>,
     sender: ViewSender<'a>,
 }
 
 #[derive(Debug, Deserialize, Template)]
 #[template(path = "pull_request.html")]
-pub struct PullRequest {
+pub struct PullRequest<'a> {
     pub number: u32,
-    html_url: String,
-    title: String,
+    #[serde(borrow)]
+    html_url: Cow<'a, str>,
+    #[serde(borrow)]
+    title: Cow<'a, str>,
 }
 
 #[derive(Debug, Deserialize)]
-struct Sender {
-    login: String,
+struct Sender<'a> {
+    #[serde(borrow)]
+    login: Cow<'a, str>,
 }
 
-impl Sender {
+impl Sender<'_> {
     fn to_view<'a>(&'a self, username_aliases: &'a UsernameAliases) -> ViewSender<'a> {
         ViewSender {
             login: &self.login,
@@ -262,7 +285,7 @@ mod test {
         );
     }
 
-    fn sample_pull_request() -> PullRequestEvent {
+    fn sample_pull_request() -> PullRequestEvent<'static> {
         PullRequestEvent {
             action: "created".into(),
             pull_request: PullRequest {

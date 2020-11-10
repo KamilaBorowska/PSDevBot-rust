@@ -10,7 +10,7 @@ use futures::FutureExt;
 use hmac::{Hmac, Mac, NewMac};
 use log::info;
 use schema::{InitialPayload, PullRequestEvent, PushEvent, PushEventContext};
-use serde::de::DeserializeOwned;
+use serde::Deserialize;
 use sha2::Sha256;
 use showdown::{RoomId, SendMessage};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -93,15 +93,15 @@ fn verify_signature(
     Ok(())
 }
 
-fn json<T: DeserializeOwned>(input: &[u8]) -> Result<T, Rejection> {
+fn json<'de, T: Deserialize<'de>>(input: &'de [u8]) -> Result<T, Rejection> {
     serde_json::from_slice(input).map_err(reject)
 }
 
-async fn handle_push_event(
+async fn handle_push_event<'a>(
     config: &'static Config,
     sender: &'static UnboundedSender,
-    rooms: &[String],
-    push_event: PushEvent,
+    rooms: &'a [String],
+    push_event: PushEvent<'a>,
 ) -> Result<(), Rejection> {
     let mut github_api = match &config.github_api {
         Some(github_api) => Some(github_api.lock().await),
@@ -131,12 +131,12 @@ const IGNORE_ACTIONS: &[&str] = &[
     "converted_to_draft",
 ];
 
-async fn handle_pull_request(
+async fn handle_pull_request<'a>(
     username_aliases: &'static UsernameAliases,
     skip_pull_requests: &'static DashSet<u32>,
     sender: &'static UnboundedSender,
-    rooms: &[String],
-    pull_request: PullRequestEvent,
+    rooms: &'a [String],
+    pull_request: PullRequestEvent<'a>,
 ) -> Result<(), Rejection> {
     let number = pull_request.pull_request.number;
     if !IGNORE_ACTIONS.contains(&&pull_request.action[..]) && skip_pull_requests.insert(number) {
