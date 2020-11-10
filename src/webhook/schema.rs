@@ -5,6 +5,16 @@ use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use serde::Deserialize;
 
+#[derive(Deserialize)]
+pub struct InitialPayload {
+    pub repository: InitialRepository,
+}
+
+#[derive(Deserialize)]
+pub struct InitialRepository {
+    pub full_name: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct PushEvent {
     #[serde(rename = "ref")]
@@ -147,7 +157,6 @@ struct Username<'a> {
 #[derive(Debug, Deserialize, Template)]
 #[template(path = "repository.html")]
 pub struct Repository {
-    pub full_name: String,
     name: String,
     html_url: String,
     pub default_branch: String,
@@ -235,7 +244,6 @@ mod test {
             },
             repository: Repository {
                 name: "ExampleCom".into(),
-                full_name: "Super/ExampleCom".into(),
                 html_url: "http://example.com/".into(),
                 default_branch: "master".into(),
             },

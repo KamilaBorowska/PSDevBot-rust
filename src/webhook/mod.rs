@@ -8,7 +8,7 @@ use futures::channel::oneshot;
 use futures::FutureExt;
 use hmac::{Hmac, Mac, NewMac};
 use log::info;
-use schema::{PullRequestEvent, PushEvent, Repository};
+use schema::{PullRequestEvent, PushEvent, InitialPayload};
 use serde::de::DeserializeOwned;
 use sha2::Sha256;
 use showdown::{RoomId, SendMessage};
@@ -60,8 +60,8 @@ fn get_rooms<'a>(
     signature: Option<String>,
     bytes: &[u8],
 ) -> Result<&'a [String], Rejection> {
-    let repository: Repository = json(bytes)?;
-    let (rooms, secret) = config.rooms_for(&repository.full_name);
+    let payload: InitialPayload = json(bytes)?;
+    let (rooms, secret) = config.rooms_for(&payload.repository.full_name);
     verify_signature(secret, signature, bytes)?;
     Ok(rooms)
 }
