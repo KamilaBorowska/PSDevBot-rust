@@ -50,7 +50,7 @@ macro_rules! view_method {
             }
             ViewPushEvent {
                 commits: commits_view,
-                repository: &$s.repository,
+                repository: $s.repository.to_view(),
             }
         }
     };
@@ -69,7 +69,7 @@ impl PushEvent<'_> {
 #[template(path = "push_event.html")]
 pub struct ViewPushEvent<'a> {
     commits: Vec<String>,
-    repository: &'a Repository<'a>,
+    repository: ViewRepository<'a>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -192,8 +192,7 @@ struct Username<'a> {
     github_metadata: Option<&'a User>,
 }
 
-#[derive(Debug, Deserialize, Template)]
-#[template(path = "repository.html")]
+#[derive(Debug, Deserialize)]
 pub struct Repository<'a> {
     #[serde(borrow)]
     name: Cow<'a, str>,
@@ -201,6 +200,27 @@ pub struct Repository<'a> {
     html_url: Cow<'a, str>,
     #[serde(borrow)]
     pub default_branch: Cow<'a, str>,
+}
+
+impl Repository<'_> {
+    fn to_view(&self) -> ViewRepository<'_> {
+        let name = match &*self.name {
+            "pokemon-showdown" => "server",
+            "pokemon-showdown-client" => "client",
+            name => name,
+        };
+        ViewRepository {
+            name,
+            html_url: &self.html_url,
+        }
+    }
+}
+
+#[derive(Template)]
+#[template(path = "repository.html")]
+pub struct ViewRepository<'a> {
+    name: &'a str,
+    html_url: &'a str,
 }
 
 #[derive(Debug, Deserialize)]
@@ -227,7 +247,7 @@ impl PullRequestEvent<'_> {
                 action => action,
             },
             pull_request: &self.pull_request,
-            repository: &self.repository,
+            repository: self.repository.to_view(),
             sender: self.sender.to_view(username_aliases),
         }
     }
@@ -238,7 +258,7 @@ impl PullRequestEvent<'_> {
 pub struct ViewPullRequestEvent<'a> {
     action: &'a str,
     pull_request: &'a PullRequest<'a>,
-    repository: &'a Repository<'a>,
+    repository: ViewRepository<'a>,
     sender: ViewSender<'a>,
 }
 
@@ -296,7 +316,7 @@ mod test {
     async fn test_push_event() {
         let commit = concat!(
             "[<a href='https:&#x2f;&#x2f;github.com&#x2f;smogon&#x2f;pokemon-showdown'>",
-            "<font color=FF00FF>pokemon-showdown</font></a>] ",
+            "<font color=FF00FF>server</font></a>] ",
             "<a href='http:&#x2f;&#x2f;example.com'><font color=606060><kbd>0da259</kbd></font></a>\n",
             "<span title='Hello, world!'>Hello, world!</span> ",
             r#"<font color=909090 title="Konrad Borowski">(xfix)</font>"#,
