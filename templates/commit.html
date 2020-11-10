@@ -1,6 +1,6 @@
 <a href='{{ url }}'><font color=606060><kbd>{{ id }}</kbd></font></a>
-{{ author|safe }}: <span title='
+<span title='
     {{- (full_message|escape).to_string().replace("\n", "&#10;")|safe -}}
 '>{{ formatted_message|safe }}{% if message != full_message -%}
    &hellip; 
-{%- endif %}</span>
+{%- endif %}</span> {{ author|safe }}

@@ -79,8 +79,17 @@ impl<'de> Deserialize<'de> for UsernameAliases {
 
 #[derive(Deserialize)]
 pub struct RoomConfiguration {
+    #[serde(default)]
     pub rooms: Vec<String>,
+    #[serde(default)]
+    pub simple_rooms: Vec<String>,
     pub secret: Option<String>,
+}
+
+pub struct RoomConfigurationRef<'a> {
+    pub rooms: &'a [String],
+    pub simple_rooms: &'a [String],
+    pub secret: &'a str,
 }
 
 impl Config {
@@ -128,23 +137,34 @@ impl Config {
     pub fn all_rooms(&self) -> HashSet<&str> {
         self.room_configuration
             .values()
-            .flat_map(|r| &r.rooms)
+            .flat_map(|r| r.rooms.iter().chain(&r.simple_rooms))
             .chain(&self.default_room_name)
             .map(String::as_str)
             .collect()
     }
 
-    pub fn rooms_for(&self, name: &str) -> (&[String], &str) {
-        if let Some(RoomConfiguration { rooms, secret }) = self.room_configuration.get(name) {
-            (rooms, secret.as_deref().unwrap_or(&self.secret))
+    pub fn rooms_for(&self, name: &str) -> RoomConfigurationRef<'_> {
+        if let Some(RoomConfiguration {
+            rooms,
+            simple_rooms,
+            secret,
+        }) = self.room_configuration.get(name)
+        {
+            RoomConfigurationRef {
+                rooms,
+                simple_rooms,
+                secret: secret.as_deref().unwrap_or(&self.secret),
+            }
         } else {
-            (
-                self.default_room_name
+            RoomConfigurationRef {
+                rooms: self
+                    .default_room_name
                     .as_ref()
                     .map(slice::from_ref)
                     .unwrap_or_default(),
-                &self.secret,
-            )
+                simple_rooms: &[],
+                secret: &self.secret,
+            }
         }
     }
 }
@@ -184,6 +204,7 @@ mod test {
             "Project".into(),
             RoomConfiguration {
                 rooms: vec!["a".into(), "b".into()],
+                simple_rooms: vec![],
                 secret: None,
             },
         );
@@ -191,6 +212,7 @@ mod test {
             "AnotherProject".into(),
             RoomConfiguration {
                 rooms: vec!["b".into(), "c".into()],
+                simple_rooms: vec![],
                 secret: None,
             },
         );
@@ -198,12 +220,13 @@ mod test {
             "StupidProject".into(),
             RoomConfiguration {
                 rooms: vec![],
+                simple_rooms: vec!["d".into()],
                 secret: None,
             },
         );
         let mut rooms: Vec<_> = config.all_rooms().into_iter().collect();
         rooms.sort();
-        assert_eq!(rooms, ["a", "b", "c"]);
+        assert_eq!(rooms, ["a", "b", "c", "d"]);
     }
 
     #[test]

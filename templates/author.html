@@ -1,4 +1,4 @@
 {% match username -%}
-    {%- when Some with (username) -%} <span title="{{ name }}">{{ username|safe }}</span>
-    {%- when None -%} <font color=909090>{{ name }}</font>
+    {%- when Some with (username) -%} <font color=909090 title="{{ name }}">({{ username|safe }})</font>
+    {%- when None -%} <font color=909090>({{ name }})</font>
 {%- endmatch %}

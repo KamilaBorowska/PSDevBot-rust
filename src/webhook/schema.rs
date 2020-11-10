@@ -36,22 +36,29 @@ pub struct PushEventContext<'a> {
     pub username_aliases: &'a UsernameAliases,
 }
 
+macro_rules! view_method {
+    ($name:ident($s:ident, $($ex:tt)*)) => {
+        pub async fn $name<'a>(&'a $s, mut ctx: PushEventContext<'a>) -> ViewPushEvent<'a> {
+            let mut commits_view = Vec::new();
+            for commit in &$s.commits {
+                commits_view.push(
+                    commit
+                        .$name($($ex)* &mut ctx)
+                        .await
+                        .to_string(),
+                );
+            }
+            ViewPushEvent {
+                commits: commits_view,
+                repository: &$s.repository,
+            }
+        }
+    };
+}
+
 impl PushEvent<'_> {
-    pub async fn to_view<'a>(&'a self, mut ctx: PushEventContext<'a>) -> ViewPushEvent<'a> {
-        let mut commits_view = Vec::new();
-        for commit in &self.commits {
-            commits_view.push(
-                commit
-                    .to_view(&self.repository.html_url, &mut ctx)
-                    .await
-                    .to_string(),
-            );
-        }
-        ViewPushEvent {
-            commits: commits_view,
-            repository: &self.repository,
-        }
-    }
+    view_method!(to_view(self, &self.repository.html_url,));
+    view_method!(to_simple_view(self,));
 
     pub fn branch(&self) -> &str {
         self.git_ref.rsplit('/').next().unwrap()
@@ -79,7 +86,7 @@ struct Commit<'a> {
 
 impl Commit<'_> {
     async fn to_view<'a>(&'a self, url: &str, ctx: &'a mut PushEventContext<'_>) -> ViewCommit<'a> {
-        let message = self.message.split('\n').next().unwrap();
+        let message = self.short_message();
         ViewCommit {
             id: &self.id[..6],
             message,
@@ -88,6 +95,22 @@ impl Commit<'_> {
             author: self.author.to_view(ctx).await,
             url: &self.url,
         }
+    }
+
+    async fn to_simple_view<'a>(
+        &'a self,
+        ctx: &'a mut PushEventContext<'_>,
+    ) -> ViewSimpleCommit<'a> {
+        ViewSimpleCommit {
+            message: self.short_message(),
+            full_message: &self.message,
+            author: self.author.to_view(ctx).await,
+            url: &self.url,
+        }
+    }
+
+    fn short_message(&self) -> &str {
+        self.message.split('\n').next().unwrap()
     }
 }
 
@@ -98,6 +121,15 @@ struct ViewCommit<'a> {
     message: &'a str,
     full_message: &'a str,
     formatted_message: String,
+    author: ViewAuthor<'a>,
+    url: &'a str,
+}
+
+#[derive(Template)]
+#[template(path = "simple_commit.html")]
+struct ViewSimpleCommit<'a> {
+    message: &'a str,
+    full_message: &'a str,
     author: ViewAuthor<'a>,
     url: &'a str,
 }
@@ -266,8 +298,8 @@ mod test {
             "[<a href='https:&#x2f;&#x2f;github.com&#x2f;smogon&#x2f;pokemon-showdown'>",
             "<font color=FF00FF>pokemon-showdown</font></a>] ",
             "<a href='http:&#x2f;&#x2f;example.com'><font color=606060><kbd>0da259</kbd></font></a>\n",
-            r#"<span title="Konrad Borowski"><font color=909090>xfix</font></span>: "#,
-            "<span title='Hello, world!'>Hello, world!</span>"
+            "<span title='Hello, world!'>Hello, world!</span> ",
+            r#"<font color=909090 title="Konrad Borowski">(xfix)</font>"#,
         );
         assert_eq!(
             PushEvent {
@@ -308,8 +340,8 @@ mod test {
             concat!(
                 "<a href='http:&#x2f;&#x2f;example.com'>",
                 "<font color=606060><kbd>0da259</kbd></font></a>\n",
-                r#"<span title="Konrad Borowski"><font color=909090>xfix</font></span>: "#,
-                "<span title='Hello, world!'>Hello, world!</span>",
+                "<span title='Hello, world!'>Hello, world!</span> ",
+                r#"<font color=909090 title="Konrad Borowski">(xfix)</font>"#,
             ),
         );
     }

@@ -1,7 +1,6 @@
 mod schema;
 
-use crate::config::Config;
-use crate::config::UsernameAliases;
+use crate::config::{Config, RoomConfigurationRef, UsernameAliases};
 use crate::unbounded::UnboundedSender;
 use bytes::Bytes;
 use dashmap::DashSet;
@@ -44,15 +43,17 @@ fn get_route(
         .and(warp::body::bytes())
         .and_then(move |signature, event: String, bytes: Bytes| async move {
             info!("Got event {}", event);
-            let rooms = get_rooms(config, signature, &bytes)?;
+            let room_configuration = get_rooms(config, signature, &bytes)?;
             match event.as_str() {
-                "push" => handle_push_event(config, sender, rooms, json(&bytes)?).await?,
+                "push" => {
+                    handle_push_event(config, sender, room_configuration, json(&bytes)?).await?
+                }
                 "pull_request" => {
                     handle_pull_request(
                         &config.username_aliases,
                         skip_pull_requests,
                         sender,
-                        rooms,
+                        &room_configuration.rooms,
                         json(&bytes)?,
                     )
                     .await?
@@ -67,11 +68,11 @@ fn get_rooms<'a>(
     config: &'a Config,
     signature: Option<String>,
     bytes: &[u8],
-) -> Result<&'a [String], Rejection> {
+) -> Result<RoomConfigurationRef<'a>, Rejection> {
     let payload: InitialPayload = json(bytes)?;
-    let (rooms, secret) = config.rooms_for(&payload.repository.full_name);
-    verify_signature(secret, signature, bytes)?;
-    Ok(rooms)
+    let room_configuration = config.rooms_for(&payload.repository.full_name);
+    verify_signature(room_configuration.secret, signature, bytes)?;
+    Ok(room_configuration)
 }
 
 fn verify_signature(
@@ -100,7 +101,7 @@ fn json<'de, T: Deserialize<'de>>(input: &'de [u8]) -> Result<T, Rejection> {
 async fn handle_push_event<'a>(
     config: &'static Config,
     sender: &'static UnboundedSender,
-    rooms: &'a [String],
+    room_configuration: RoomConfigurationRef<'a>,
     push_event: PushEvent<'a>,
 ) -> Result<(), Rejection> {
     let mut github_api = match &config.github_api {
@@ -108,13 +109,28 @@ async fn handle_push_event<'a>(
         None => None,
     };
     if push_event.repository.default_branch == push_event.branch() {
-        for room in rooms {
+        for room in room_configuration.rooms {
             let message = html_command(
                 room,
                 &format!(
                     "addhtmlbox {}",
                     push_event
                         .to_view(PushEventContext {
+                            github_api: github_api.as_deref_mut(),
+                            username_aliases: &config.username_aliases,
+                        })
+                        .await
+                ),
+            );
+            sender.send(message).await.map_err(reject)?;
+        }
+        for room in room_configuration.simple_rooms {
+            let message = html_command(
+                room,
+                &format!(
+                    "addhtmlbox {}",
+                    push_event
+                        .to_simple_view(PushEventContext {
                             github_api: github_api.as_deref_mut(),
                             username_aliases: &config.username_aliases,
                         })

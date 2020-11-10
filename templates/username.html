@@ -4,5 +4,5 @@
             <img src='{{ github.avatar_url }}?s=54' width=18 height=18 style='vertical-align: bottom; border-radius: 50%' alt="">
         </a><a href='{{ github.html_url }}'><font color=909090>{{ username }}</font></a>
     {%- when None -%}
-    <font color=909090>{{ username }}</font>
+    {{ username }}
 {%- endmatch %}
