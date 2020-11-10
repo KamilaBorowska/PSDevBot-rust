@@ -1,6 +1,7 @@
 mod schema;
 
 use crate::config::Config;
+use crate::config::UsernameAliases;
 use crate::unbounded::UnboundedSender;
 use bytes::Bytes;
 use dashmap::DashSet;
@@ -8,7 +9,7 @@ use futures::channel::oneshot;
 use futures::FutureExt;
 use hmac::{Hmac, Mac, NewMac};
 use log::info;
-use schema::{InitialPayload, PullRequestEvent, PushEvent};
+use schema::{InitialPayload, PullRequestEvent, PushEvent, PushEventContext};
 use serde::de::DeserializeOwned;
 use sha2::Sha256;
 use showdown::{RoomId, SendMessage};
@@ -47,7 +48,14 @@ fn get_route(
             match event.as_str() {
                 "push" => handle_push_event(config, sender, rooms, json(&bytes)?).await?,
                 "pull_request" => {
-                    handle_pull_request(skip_pull_requests, sender, rooms, json(&bytes)?).await?
+                    handle_pull_request(
+                        &config.username_aliases,
+                        skip_pull_requests,
+                        sender,
+                        rooms,
+                        json(&bytes)?,
+                    )
+                    .await?
                 }
                 _ => {}
             }
@@ -103,7 +111,12 @@ async fn handle_push_event(
         for room in rooms {
             let message = html_command(
                 room,
-                &push_event.get_message(github_api.as_deref_mut()).await,
+                &push_event
+                    .get_message(PushEventContext {
+                        github_api: github_api.as_deref_mut(),
+                        username_aliases: &config.username_aliases,
+                    })
+                    .await,
             );
             sender.send(message).await.map_err(reject)?;
         }
@@ -119,6 +132,7 @@ const IGNORE_ACTIONS: &[&str] = &[
 ];
 
 async fn handle_pull_request(
+    username_aliases: &'static UsernameAliases,
     skip_pull_requests: &'static DashSet<u32>,
     sender: &'static UnboundedSender,
     rooms: &[String],
@@ -131,7 +145,10 @@ async fn handle_pull_request(
             skip_pull_requests.remove(&number);
         });
         for room in rooms {
-            let message = html_command(room, &format!("addhtmlbox {}", pull_request.to_view()));
+            let message = html_command(
+                room,
+                &format!("addhtmlbox {}", pull_request.to_view(username_aliases)),
+            );
             sender.send(message).await.map_err(reject)?;
         }
     }

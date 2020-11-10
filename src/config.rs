@@ -1,11 +1,15 @@
 use crate::github_api::GitHubApi;
 use futures::lock::Mutex;
+use serde::de::{Deserializer, MapAccess, Visitor};
 use serde::Deserialize;
 use showdown::url::Url;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::error::Error;
+use std::fmt::{self, Formatter};
+use std::hash::{BuildHasher, Hash, Hasher};
 use std::slice;
+use unicase::UniCase;
 
 pub struct Config {
     pub server: Url,
@@ -16,6 +20,61 @@ pub struct Config {
     default_room_name: Option<String>,
     room_configuration: HashMap<String, RoomConfiguration>,
     pub github_api: Option<Mutex<GitHubApi>>,
+    pub username_aliases: UsernameAliases,
+}
+
+#[derive(Default)]
+pub struct UsernameAliases {
+    map: hashbrown::HashMap<UniCase<String>, String>,
+}
+
+impl UsernameAliases {
+    pub fn get<'a>(&'a self, key: &'a str) -> &'a str {
+        let unicase = UniCase::new(key);
+        let mut hasher = self.map.hasher().build_hasher();
+        unicase.hash(&mut hasher);
+        self.map
+            .raw_entry()
+            .from_hash(hasher.finish(), |k| *k == unicase)
+            .map(|(_, v)| v.as_str())
+            .unwrap_or(key)
+    }
+
+    pub fn insert(&mut self, key: String, value: String) {
+        self.map.insert(UniCase::new(key), value);
+    }
+}
+
+impl<'de> Deserialize<'de> for UsernameAliases {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct MapVisitor;
+
+        impl<'de> Visitor<'de> for MapVisitor {
+            type Value = UsernameAliases;
+
+            fn expecting(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
+                fmt.write_str("a map")
+            }
+
+            fn visit_map<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut map = UsernameAliases {
+                    map: hashbrown::HashMap::new(),
+                };
+                while let Some((key, value)) = access.next_entry()? {
+                    map.insert(key, value);
+                }
+                Ok(map)
+            }
+        }
+
+        deserializer.deserialize_map(MapVisitor)
+    }
 }
 
 #[derive(Deserialize)]
@@ -48,6 +107,11 @@ impl Config {
             let password = env::var("PSDEVBOT_GITHUB_API_PASSWORD").ok()?;
             Some(Mutex::new(GitHubApi::new(user, password)))
         });
+        let username_aliases = env::var("PSDEVBOT_USERNAME_ALIASES")
+            .map(|json| {
+                serde_json::from_str(&json).expect("PSDEVBOT_USERNAME_ALIASES should be valid JSON")
+            })
+            .unwrap_or_default();
         Ok(Self {
             server,
             user,
@@ -57,6 +121,7 @@ impl Config {
             default_room_name,
             room_configuration: room_configuration.unwrap_or_default(),
             github_api,
+            username_aliases,
         })
     }
 
@@ -86,7 +151,7 @@ impl Config {
 
 #[cfg(test)]
 mod test {
-    use super::{Config, RoomConfiguration};
+    use super::{Config, RoomConfiguration, UsernameAliases};
     use std::collections::HashMap;
 
     fn base_config() -> Config {
@@ -99,6 +164,7 @@ mod test {
             default_room_name: None,
             room_configuration: HashMap::new(),
             github_api: None,
+            username_aliases: UsernameAliases::default(),
         }
     }
 
@@ -138,5 +204,13 @@ mod test {
         let mut rooms: Vec<_> = config.all_rooms().into_iter().collect();
         rooms.sort();
         assert_eq!(rooms, ["a", "b", "c"]);
+    }
+
+    #[test]
+    fn test_username_aliases() {
+        let mut username_aliases = UsernameAliases::default();
+        username_aliases.insert("A".into(), "Awesome".into());
+        assert_eq!(username_aliases.get("a"), "Awesome");
+        assert_eq!(username_aliases.get("b"), "b");
     }
 }

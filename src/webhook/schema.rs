@@ -1,3 +1,4 @@
+use crate::config::UsernameAliases;
 use crate::github_api::{GitHubApi, User};
 use askama::Template;
 use htmlescape::encode_minimal as h;
@@ -26,8 +27,13 @@ pub struct PushEvent {
     pub repository: Repository,
 }
 
+pub struct PushEventContext<'a> {
+    pub github_api: Option<&'a mut GitHubApi>,
+    pub username_aliases: &'a UsernameAliases,
+}
+
 impl PushEvent {
-    pub async fn get_message(&self, mut github_api: Option<&mut GitHubApi>) -> String {
+    pub async fn get_message(&self, mut ctx: PushEventContext<'_>) -> String {
         let pushed = if self.forced {
             "<font color='red'>force-pushed</font>"
         } else {
@@ -48,9 +54,7 @@ impl PushEvent {
             s = if self.commits.len() == 1 { "" } else { "s" },
         );
         for commit in &self.commits {
-            let commit_view = commit
-                .to_view(&self.repository.html_url, github_api.as_deref_mut())
-                .await;
+            let commit_view = commit.to_view(&self.repository.html_url, &mut ctx).await;
             output += &format!("<br>{}", commit_view);
         }
         output
@@ -70,18 +74,14 @@ struct Commit {
 }
 
 impl Commit {
-    async fn to_view<'a>(
-        &'a self,
-        url: &str,
-        github_api: Option<&'a mut GitHubApi>,
-    ) -> ViewCommit<'a> {
+    async fn to_view<'a>(&'a self, url: &str, ctx: &'a mut PushEventContext<'_>) -> ViewCommit<'a> {
         let message = self.message.split('\n').next().unwrap();
         ViewCommit {
             id: &self.id[..6],
             message,
             full_message: &self.message,
             formatted_message: format_title(message, url),
-            author: self.author.to_view(github_api).await,
+            author: self.author.to_view(ctx).await,
             url: &self.url,
         }
     }
@@ -119,15 +119,15 @@ struct Author {
 }
 
 impl Author {
-    async fn to_view<'a>(&'a self, github_api: Option<&'a mut GitHubApi>) -> ViewAuthor<'a> {
+    async fn to_view<'a>(&'a self, ctx: &'a mut PushEventContext<'_>) -> ViewAuthor<'a> {
         let username = if let Some(username) = &self.username {
-            let github_metadata = if let Some(github_api) = github_api {
+            let github_metadata = if let Some(github_api) = &mut ctx.github_api {
                 github_api.fetch_user(username).await
             } else {
                 None
             };
             Some(Username {
-                username,
+                username: ctx.username_aliases.get(username),
                 github_metadata,
             })
         } else {
@@ -171,7 +171,10 @@ pub struct PullRequestEvent {
 }
 
 impl PullRequestEvent {
-    pub fn to_view(&self) -> ViewPullRequestEvent<'_> {
+    pub fn to_view<'a>(
+        &'a self,
+        username_aliases: &'a UsernameAliases,
+    ) -> ViewPullRequestEvent<'a> {
         ViewPullRequestEvent {
             action: match self.action.as_str() {
                 "synchronize" => "updated",
@@ -180,7 +183,7 @@ impl PullRequestEvent {
             },
             pull_request: &self.pull_request,
             repository: &self.repository,
-            sender: &self.sender,
+            sender: self.sender.to_view(username_aliases),
         }
     }
 }
@@ -191,7 +194,7 @@ pub struct ViewPullRequestEvent<'a> {
     action: &'a str,
     pull_request: &'a PullRequest,
     repository: &'a Repository,
-    sender: &'a Sender,
+    sender: ViewSender<'a>,
 }
 
 #[derive(Debug, Deserialize, Template)]
@@ -207,9 +210,26 @@ struct Sender {
     login: String,
 }
 
+impl Sender {
+    fn to_view<'a>(&'a self, username_aliases: &'a UsernameAliases) -> ViewSender<'a> {
+        ViewSender {
+            login: &self.login,
+            renamed_login: username_aliases.get(&self.login),
+        }
+    }
+}
+
+struct ViewSender<'a> {
+    login: &'a str,
+    renamed_login: &'a str,
+}
+
 #[cfg(test)]
 mod test {
-    use super::{Author, Commit, PullRequest, PullRequestEvent, Repository, Sender};
+    use super::{
+        Author, Commit, PullRequest, PullRequestEvent, PushEventContext, Repository, Sender,
+    };
+    use crate::config::UsernameAliases;
 
     #[tokio::test]
     async fn test_commit() {
@@ -223,7 +243,16 @@ mod test {
             url: "http://example.com".into(),
         };
         assert_eq!(
-            commit.to_view("shouldn't be used", None).await.to_string(),
+            commit
+                .to_view(
+                    "shouldn't be used",
+                    &mut PushEventContext {
+                        github_api: None,
+                        username_aliases: &UsernameAliases::default(),
+                    }
+                )
+                .await
+                .to_string(),
             concat!(
                 "<a href='http:&#x2f;&#x2f;example.com'>",
                 "<font color=606060><kbd>0da259</kbd></font></a>\n",
@@ -233,9 +262,8 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_pull_request() {
-        let event = PullRequestEvent {
+    fn sample_pull_request() -> PullRequestEvent {
+        PullRequestEvent {
             action: "created".into(),
             pull_request: PullRequest {
                 number: 1,
@@ -248,13 +276,34 @@ mod test {
                 default_branch: "master".into(),
             },
             sender: Sender { login: "Me".into() },
-        };
+        }
+    }
+
+    #[test]
+    fn test_pull_request() {
         assert_eq!(
-            event.to_view().to_string(),
+            sample_pull_request()
+                .to_view(&UsernameAliases::default())
+                .to_string(),
             concat!(
                 "[<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
                 "color='909090'>Me</font></a> created pull request ",
+                "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>#1</a>: Hello, world",
+            ),
+        );
+    }
+
+    #[test]
+    fn test_pull_request_with_an_alias() {
+        let mut aliases = UsernameAliases::default();
+        aliases.insert("mE".into(), "Not me".into());
+        assert_eq!(
+            sample_pull_request().to_view(&aliases).to_string(),
+            concat!(
+                "[<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
+                "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
+                "color='909090'>Not me</font></a> created pull request ",
                 "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>#1</a>: Hello, world",
             ),
         );
