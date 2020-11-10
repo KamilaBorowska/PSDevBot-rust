@@ -392,8 +392,8 @@ mod test {
             concat!(
                 "[<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
-                "color='909090'>Me</font></a> created pull request ",
-                "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>#1</a>: Hello, world",
+                "color='909090'>Me</font></a> created ",
+                "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>PR#1</a>: Hello, world",
             ),
         );
     }
@@ -407,8 +407,8 @@ mod test {
             concat!(
                 "[<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
-                "color='909090'>Not me</font></a> created pull request ",
-                "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>#1</a>: Hello, world",
+                "color='909090'>Not me</font></a> created ",
+                "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>PR#1</a>: Hello, world",
             ),
         );
     }
