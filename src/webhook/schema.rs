@@ -23,11 +23,8 @@ pub struct InitialRepository<'a> {
 pub struct PushEvent<'a> {
     #[serde(borrow, rename = "ref")]
     git_ref: Cow<'a, str>,
-    forced: bool,
     #[serde(borrow)]
     commits: Vec<Commit<'a>>,
-    #[serde(borrow)]
-    compare: Cow<'a, str>,
     #[serde(borrow)]
     pusher: Pusher<'a>,
     #[serde(borrow)]
@@ -40,36 +37,32 @@ pub struct PushEventContext<'a> {
 }
 
 impl PushEvent<'_> {
-    pub async fn get_message(&self, mut ctx: PushEventContext<'_>) -> String {
-        let pushed = if self.forced {
-            "<font color='red'>force-pushed</font>"
-        } else {
-            "pushed"
-        };
-        let mut output = format!(
-            concat!(
-                "addhtmlbox {repo} <a href='https://github.com/{pusher}'>",
-                "<font color='909090'>{pusher}</font></a> ",
-                "{pushed} <a href='{compare}'><b>{commits}</b> new ",
-                "commit{s}</a>",
-            ),
-            repo = self.repository,
-            pusher = h(&self.pusher.name),
-            pushed = pushed,
-            compare = h(&self.compare),
-            commits = self.commits.len(),
-            s = if self.commits.len() == 1 { "" } else { "s" },
-        );
+    pub async fn to_view<'a>(&'a self, mut ctx: PushEventContext<'a>) -> ViewPushEvent<'a> {
+        let mut commits_view = Vec::new();
         for commit in &self.commits {
-            let commit_view = commit.to_view(&self.repository.html_url, &mut ctx).await;
-            output += &format!("<br>{}", commit_view);
+            commits_view.push(
+                commit
+                    .to_view(&self.repository.html_url, &mut ctx)
+                    .await
+                    .to_string(),
+            );
         }
-        output
+        ViewPushEvent {
+            commits: commits_view,
+            repository: &self.repository,
+        }
     }
 
     pub fn branch(&self) -> &str {
         self.git_ref.rsplit('/').next().unwrap()
     }
+}
+
+#[derive(Template)]
+#[template(path = "push_event.html")]
+pub struct ViewPushEvent<'a> {
+    commits: Vec<String>,
+    repository: &'a Repository<'a>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,13 +243,13 @@ struct ViewSender<'a> {
 #[cfg(test)]
 mod test {
     use super::{
-        Author, Commit, PullRequest, PullRequestEvent, PushEventContext, Repository, Sender,
+        Author, Commit, PullRequest, PullRequestEvent, PushEvent, PushEventContext, Pusher,
+        Repository, Sender,
     };
     use crate::config::UsernameAliases;
 
-    #[tokio::test]
-    async fn test_commit() {
-        let commit = Commit {
+    fn sample_commit() -> Commit<'static> {
+        Commit {
             id: "0da2590a700d054fc2ce39ddc9c95f360329d9be".into(),
             message: "Hello, world!".into(),
             author: Author {
@@ -264,9 +257,45 @@ mod test {
                 username: Some("xfix".into()),
             },
             url: "http://example.com".into(),
-        };
+        }
+    }
+
+    #[tokio::test]
+    async fn test_push_event() {
+        let commit = concat!(
+            "[<a href='https:&#x2f;&#x2f;github.com&#x2f;smogon&#x2f;pokemon-showdown'>",
+            "<font color=FF00FF>pokemon-showdown</font></a>] ",
+            "<a href='http:&#x2f;&#x2f;example.com'><font color=606060><kbd>0da259</kbd></font></a>\n",
+            r#"<span title="Konrad Borowski"><font color=909090>xfix</font></span>: "#,
+            "<span title='Hello, world!'>Hello, world!</span>"
+        );
         assert_eq!(
-            commit
+            PushEvent {
+                git_ref: "refs/head/master".into(),
+                commits: vec![sample_commit(), sample_commit()],
+                pusher: Pusher {
+                    name: "Zarel".into(),
+                },
+                repository: Repository {
+                    name: "pokemon-showdown".into(),
+                    html_url: "https://github.com/smogon/pokemon-showdown".into(),
+                    default_branch: "master".into(),
+                }
+            }
+            .to_view(PushEventContext {
+                github_api: None,
+                username_aliases: &UsernameAliases::default(),
+            })
+            .await
+            .to_string(),
+            format!("{0}<br>{0}", commit)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_commit() {
+        assert_eq!(
+            sample_commit()
                 .to_view(
                     "shouldn't be used",
                     &mut PushEventContext {

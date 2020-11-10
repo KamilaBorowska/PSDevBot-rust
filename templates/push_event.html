@@ -1,0 +1,3 @@
+{% for commit in commits -%}
+    {{ repository|safe }} {{ commit|safe }} {%- if !loop.last %}<br>{% endif -%}
+{%- endfor %}

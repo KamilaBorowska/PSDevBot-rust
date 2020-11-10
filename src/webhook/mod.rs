@@ -111,12 +111,15 @@ async fn handle_push_event<'a>(
         for room in rooms {
             let message = html_command(
                 room,
-                &push_event
-                    .get_message(PushEventContext {
-                        github_api: github_api.as_deref_mut(),
-                        username_aliases: &config.username_aliases,
-                    })
-                    .await,
+                &format!(
+                    "addhtmlbox {}",
+                    push_event
+                        .to_view(PushEventContext {
+                            github_api: github_api.as_deref_mut(),
+                            username_aliases: &config.username_aliases,
+                        })
+                        .await
+                ),
             );
             sender.send(message).await.map_err(reject)?;
         }
