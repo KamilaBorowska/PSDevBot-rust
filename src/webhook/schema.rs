@@ -56,7 +56,7 @@ impl PushEvent {
         output
     }
 
-    pub fn get_branch(&self) -> &str {
+    pub fn branch(&self) -> &str {
         self.git_ref.rsplit('/').next().unwrap()
     }
 }

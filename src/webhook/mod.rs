@@ -99,7 +99,7 @@ async fn handle_push_event(
         Some(github_api) => Some(github_api.lock().await),
         None => None,
     };
-    if push_event.repository.default_branch == push_event.get_branch() {
+    if push_event.repository.default_branch == push_event.branch() {
         for room in rooms {
             let message = html_command(
                 room,
