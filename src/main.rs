@@ -46,9 +46,8 @@ async fn run_authenticated(
         info!("Received message: {:?}", message);
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.kind() {
             for room in config.all_rooms() {
-                sender
-                    .send(SendMessage::global_command(format_args!("join {}", room)))
-                    .await?;
+                let command = SendMessage::global_command(format_args!("join {}", room));
+                sender.send(command).await?;
             }
         }
     }
