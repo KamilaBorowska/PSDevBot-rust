@@ -9,7 +9,7 @@ use log::info;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, ReceiveExt, SendMessage, Stream};
 use std::error::Error;
-use unbounded::UnboundedSender;
+use unbounded::DelayedSender;
 use webhook::start_server;
 
 #[tokio::main]
@@ -30,11 +30,11 @@ async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync + 'stat
         }
     }
     let (sender, receiver) = stream.split();
-    run_authenticated(UnboundedSender::new(sender), receiver, config).await
+    run_authenticated(DelayedSender::new(sender), receiver, config).await
 }
 
 async fn run_authenticated(
-    sender: UnboundedSender,
+    sender: DelayedSender,
     mut receiver: SplitStream<Stream>,
     config: Config,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {

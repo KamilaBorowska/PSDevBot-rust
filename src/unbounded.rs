@@ -6,11 +6,11 @@ use showdown::SendMessage;
 use tokio::time;
 
 #[derive(Clone, Debug)]
-pub struct UnboundedSender {
+pub struct DelayedSender {
     sender: mpsc::UnboundedSender<SendMessage>,
 }
 
-impl UnboundedSender {
+impl DelayedSender {
     pub fn new(mut showdown_sender: impl Sink<SendMessage> + Send + Unpin + 'static) -> Self {
         let (tx, mut rx) = mpsc::unbounded();
         tokio::spawn(async move {

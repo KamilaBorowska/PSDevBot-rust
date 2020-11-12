@@ -1,7 +1,7 @@
 mod schema;
 
 use crate::config::{Config, RoomConfigurationRef, UsernameAliases};
-use crate::unbounded::UnboundedSender;
+use crate::unbounded::DelayedSender;
 use bytes::Bytes;
 use dashmap::DashSet;
 use futures::channel::oneshot;
@@ -20,7 +20,7 @@ use warp::{path, Filter, Rejection};
 
 pub fn start_server(
     config: &'static Config,
-    sender: &'static UnboundedSender,
+    sender: &'static DelayedSender,
 ) -> oneshot::Sender<()> {
     let (tx, rx) = oneshot::channel();
     let port = config.port;
@@ -34,7 +34,7 @@ pub fn start_server(
 
 fn get_route(
     config: &'static Config,
-    sender: &'static UnboundedSender,
+    sender: &'static DelayedSender,
 ) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
     let skip_pull_requests = &*Box::leak(Box::new(DashSet::new()));
     path!("github" / "callback")
@@ -100,7 +100,7 @@ fn json<'de, T: Deserialize<'de>>(input: &'de [u8]) -> Result<T, Rejection> {
 
 async fn handle_push_event<'a>(
     config: &'static Config,
-    sender: &'static UnboundedSender,
+    sender: &'static DelayedSender,
     room_configuration: RoomConfigurationRef<'a>,
     push_event: PushEvent<'a>,
 ) -> Result<(), Rejection> {
@@ -153,7 +153,7 @@ const IGNORE_ACTIONS: &[&str] = &[
 async fn handle_pull_request<'a>(
     username_aliases: &'static UsernameAliases,
     skip_pull_requests: &'static DashSet<u32>,
-    sender: &'static UnboundedSender,
+    sender: &'static DelayedSender,
     rooms: &'a [String],
     pull_request: PullRequestEvent<'a>,
 ) -> Result<(), Rejection> {
