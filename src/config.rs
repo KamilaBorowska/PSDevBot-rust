@@ -36,8 +36,7 @@ impl UsernameAliases {
         self.map
             .raw_entry()
             .from_hash(hasher.finish(), |k| *k == unicase)
-            .map(|(_, v)| v.as_str())
-            .unwrap_or(key)
+            .map_or(key, |(_, v)| v)
     }
 
     pub fn insert(&mut self, key: String, value: String) {
