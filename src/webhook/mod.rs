@@ -53,7 +53,7 @@ fn get_route(
                         &config.username_aliases,
                         skip_pull_requests,
                         sender,
-                        &room_configuration.rooms,
+                        room_configuration.rooms,
                         json(&bytes)?,
                     )
                     .await?
