@@ -63,9 +63,7 @@ impl<'de> Deserialize<'de> for UsernameAliases {
             where
                 A: MapAccess<'de>,
             {
-                let mut map = UsernameAliases {
-                    map: hashbrown::HashMap::new(),
-                };
+                let mut map = UsernameAliases::default();
                 while let Some((key, value)) = access.next_entry()? {
                     map.insert(key, value);
                 }
