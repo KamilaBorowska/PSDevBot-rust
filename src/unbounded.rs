@@ -36,7 +36,7 @@ mod test {
     use futures::StreamExt;
     use showdown::SendMessage;
     use std::error::Error;
-    use tokio::time::{self, Instant};
+    use tokio::time::{self, Duration, Instant};
 
     #[tokio::test]
     async fn sender_does_not_delay_on_first_message() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -50,6 +50,27 @@ mod test {
             sender.send(message.clone()).await?;
             assert_eq!(rx.next().await, Some(message));
             assert_eq!(now, Instant::now());
+            Ok(())
+        })
+        .await?
+    }
+
+    #[tokio::test]
+    async fn sender_does_delay_on_second_message() -> Result<(), Box<dyn Error + Send + Sync>> {
+        time::pause();
+        // Spawning a task is necessary to workaround https://github.com/tokio-rs/tokio/issues/3108
+        tokio::spawn(async {
+            let (tx, mut rx) = mpsc::unbounded();
+            let sender = DelayedSender::new(tx);
+            let start = Instant::now();
+            let a_message = SendMessage::global_command("a");
+            sender.send(a_message.clone()).await?;
+            assert_eq!(rx.next().await, Some(a_message));
+            assert_eq!(start, Instant::now());
+            let b_message = SendMessage::global_command("b");
+            sender.send(b_message.clone()).await?;
+            assert_eq!(rx.next().await, Some(b_message));
+            assert!(Instant::now() + Duration::from_millis(700) >= start);
             Ok(())
         })
         .await?
