@@ -27,3 +27,6 @@ showdown = "0.10.2"
 tokio = { version = "0.2.22", features = ["macros", "rt-threaded", "time"] }
 unicase = "2.6.0"
 warp = { version = "0.2.5", default-features = false }
+
+[dev-dependencies]
+tokio = { version = "0.2.22", features = ["test-util"] }

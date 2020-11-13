@@ -1,5 +1,4 @@
-use futures::channel::mpsc;
-use futures::channel::mpsc::SendError;
+use futures::channel::mpsc::{self, SendError};
 use futures::{Sink, SinkExt, StreamExt};
 use log::info;
 use showdown::SendMessage;
@@ -27,5 +26,32 @@ impl DelayedSender {
 
     pub async fn send(&self, message: SendMessage) -> Result<(), SendError> {
         (&self.sender).send(message).await
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::DelayedSender;
+    use futures::channel::mpsc;
+    use futures::StreamExt;
+    use showdown::SendMessage;
+    use std::error::Error;
+    use tokio::time::{self, Instant};
+
+    #[tokio::test]
+    async fn sender_does_not_delay_on_first_message() -> Result<(), Box<dyn Error + Send + Sync>> {
+        time::pause();
+        // Spawning a task is necessary to workaround https://github.com/tokio-rs/tokio/issues/3108
+        tokio::spawn(async {
+            let (tx, mut rx) = mpsc::unbounded();
+            let sender = DelayedSender::new(tx);
+            let now = Instant::now();
+            let message = SendMessage::global_command("test");
+            sender.send(message.clone()).await?;
+            assert_eq!(rx.next().await, Some(message));
+            assert_eq!(now, Instant::now());
+            Ok(())
+        })
+        .await?
     }
 }
