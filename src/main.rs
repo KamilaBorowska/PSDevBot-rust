@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     start(config).await
 }
 
-async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut stream = connect_to_url(&config.server).await?;
     loop {
         if let Kind::Challenge(ch) = stream.receive().await?.kind() {
