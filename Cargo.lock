@@ -1314,9 +1314,9 @@ dependencies = [
 
 [[package]]
 name = "showdown"
-version = "0.10.2"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41cf14f94d371e24ea976a4fca22bf2584f0a39f1fa36258ae3ade0729766a64"
+checksum = "1fa947f09108d036c290927a6b3df14b7e71b7c40327eb9398fccfb668a54919"
 dependencies = [
  "extension-trait",
  "futures-util",
