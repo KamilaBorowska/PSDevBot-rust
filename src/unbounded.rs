@@ -2,7 +2,7 @@ use futures::channel::mpsc::{self, SendError};
 use futures::{Sink, SinkExt, StreamExt};
 use log::info;
 use showdown::SendMessage;
-use tokio::time;
+use tokio::time::{self, Duration};
 
 #[derive(Clone, Debug)]
 pub struct DelayedSender {
@@ -11,14 +11,14 @@ pub struct DelayedSender {
 
 impl DelayedSender {
     pub fn new(mut showdown_sender: impl Sink<SendMessage> + Send + Unpin + 'static) -> Self {
-        let (tx, mut rx) = mpsc::unbounded();
+        let (tx, rx) = mpsc::unbounded::<SendMessage>();
+        let mut rx = time::throttle(Duration::from_millis(700), rx);
         tokio::spawn(async move {
             while let Some(message) = rx.next().await {
                 info!("Sent message: {:?}", message);
                 if showdown_sender.send(message).await.is_err() {
                     return;
                 }
-                time::delay_for(time::Duration::from_millis(700)).await;
             }
         });
         Self { sender: tx }
