@@ -316,17 +316,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "extension-trait"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3e9c5c7ccae01c71be04493526eaf660c662c47e4a34880ae0c7c84551cd85d"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "fake-simd"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1314,11 +1303,10 @@ dependencies = [
 
 [[package]]
 name = "showdown"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fa947f09108d036c290927a6b3df14b7e71b7c40327eb9398fccfb668a54919"
+checksum = "a8f9858cfe32f246608147f75911d989c3f6d912c8e3cd52f790df54ce170e57"
 dependencies = [
- "extension-trait",
  "futures-util",
  "reqwest",
  "serde",

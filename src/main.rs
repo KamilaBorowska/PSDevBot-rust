@@ -7,7 +7,7 @@ use config::Config;
 use futures::stream::{SplitStream, StreamExt};
 use log::info;
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect_to_url, ReceiveExt, SendMessage, Stream};
+use showdown::{connect_to_url, SendMessage, Stream};
 use std::error::Error;
 use unbounded::DelayedSender;
 use webhook::start_server;
@@ -22,15 +22,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
 async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut stream = connect_to_url(&config.server).await?;
-    loop {
-        if let Kind::Challenge(ch) = stream.receive().await?.kind() {
+    while let Some(message) = stream.next().await {
+        if let Kind::Challenge(ch) = message?.kind() {
             ch.login_with_password(&mut stream, &config.user, &config.password)
                 .await?;
+            let (sender, receiver) = stream.split();
+            run_authenticated(DelayedSender::new(sender), receiver, config).await?;
             break;
         }
     }
-    let (sender, receiver) = stream.split();
-    run_authenticated(DelayedSender::new(sender), receiver, config).await
+    Ok(())
 }
 
 async fn run_authenticated(
@@ -41,8 +42,8 @@ async fn run_authenticated(
     let config = Box::leak(Box::new(config));
     let sender = Box::leak(Box::new(sender));
     let _server = start_server(config, sender);
-    loop {
-        let message = receiver.receive().await?;
+    while let Some(message) = receiver.next().await {
+        let message = message?;
         info!("Received message: {:?}", message);
         if let Kind::UpdateUser(UpdateUser { named: true, .. }) = message.kind() {
             for room in config.all_rooms() {
@@ -51,4 +52,5 @@ async fn run_authenticated(
             }
         }
     }
+    Ok(())
 }
