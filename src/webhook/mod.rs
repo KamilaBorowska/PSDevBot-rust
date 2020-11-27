@@ -3,7 +3,6 @@ mod schema;
 use crate::config::{Config, RoomConfigurationRef, UsernameAliases};
 use crate::unbounded::DelayedSender;
 use bytes::Bytes;
-use dashmap::DashSet;
 use futures::channel::oneshot;
 use futures::FutureExt;
 use hmac::{Hmac, Mac, NewMac};
@@ -12,7 +11,9 @@ use schema::{InitialPayload, PullRequestEvent, PushEvent, PushEventContext};
 use serde::Deserialize;
 use sha2::Sha256;
 use showdown::{RoomId, SendMessage};
+use std::collections::HashSet;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::sync::Mutex;
 use std::time::Duration;
 use tokio::time;
 use warp::reject::Reject;
@@ -36,7 +37,7 @@ fn get_route(
     config: &'static Config,
     sender: &'static DelayedSender,
 ) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
-    let skip_pull_requests = &*Box::leak(Box::new(DashSet::new()));
+    let skip_pull_requests = &*Box::leak(Box::new(Mutex::new(HashSet::new())));
     path!("github" / "callback")
         .and(warp::header::optional("X-Hub-Signature-256"))
         .and(warp::header("X-GitHub-Event"))
@@ -152,16 +153,18 @@ const IGNORE_ACTIONS: &[&str] = &[
 
 async fn handle_pull_request<'a>(
     username_aliases: &'static UsernameAliases,
-    skip_pull_requests: &'static DashSet<u32>,
+    skip_pull_requests: &'static Mutex<HashSet<u32>>,
     sender: &'static DelayedSender,
     rooms: &'a [String],
     pull_request: PullRequestEvent<'a>,
 ) -> Result<(), Rejection> {
     let number = pull_request.pull_request.number;
-    if !IGNORE_ACTIONS.contains(&&pull_request.action[..]) && skip_pull_requests.insert(number) {
+    if !IGNORE_ACTIONS.contains(&&pull_request.action[..])
+        && skip_pull_requests.lock().unwrap().insert(number)
+    {
         tokio::spawn(async move {
             time::delay_for(Duration::from_secs(10 * 60)).await;
-            skip_pull_requests.remove(&number);
+            skip_pull_requests.lock().unwrap().remove(&number);
         });
         for room in rooms {
             let message = html_command(
