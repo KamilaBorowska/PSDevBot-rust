@@ -9,6 +9,8 @@ use log::info;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, SendMessage, Stream};
 use std::error::Error;
+use std::time::Duration;
+use tokio::time::timeout;
 use unbounded::DelayedSender;
 use webhook::start_server;
 
@@ -21,17 +23,21 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 }
 
 async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let stream = timeout(Duration::from_secs(30), authenticate(&config)).await??;
+    let (sender, receiver) = stream.split();
+    run_authenticated(DelayedSender::new(sender), receiver, config).await
+}
+
+async fn authenticate(config: &Config) -> Result<Stream, Box<dyn Error + Send + Sync>> {
     let mut stream = connect_to_url(&config.server).await?;
     while let Some(message) = stream.next().await {
         if let Kind::Challenge(ch) = message?.kind() {
             ch.login_with_password(&mut stream, &config.user, &config.password)
                 .await?;
-            let (sender, receiver) = stream.split();
-            run_authenticated(DelayedSender::new(sender), receiver, config).await?;
-            break;
+            return Ok(stream);
         }
     }
-    Ok(())
+    Err("Server disconnected before authenticating".into())
 }
 
 async fn run_authenticated(
