@@ -20,16 +20,16 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _ = dotenv::dotenv();
     let config = Config::new()?;
     env_logger::init();
-    start(config).await
+    start(Box::leak(Box::new(config))).await
 }
 
-async fn start(config: Config) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn start(config: &'static Config) -> Result<(), Box<dyn Error + Send + Sync>> {
     let stream = timeout(Duration::from_secs(30), authenticate(&config)).await??;
     let (sender, receiver) = stream.split();
     run_authenticated(DelayedSender::new(sender), receiver, config).await
 }
 
-async fn authenticate(config: &Config) -> Result<Stream, Box<dyn Error + Send + Sync>> {
+async fn authenticate(config: &'static Config) -> Result<Stream, Box<dyn Error + Send + Sync>> {
     let mut stream = connect_to_url(&config.server).await?;
     while let Some(message) = stream.next().await {
         if let Kind::Challenge(ch) = message?.kind() {
@@ -44,9 +44,8 @@ async fn authenticate(config: &Config) -> Result<Stream, Box<dyn Error + Send + 
 async fn run_authenticated(
     sender: DelayedSender,
     mut receiver: SplitStream<Stream>,
-    config: Config,
+    config: &'static Config,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
-    let config = Box::leak(Box::new(config));
     let sender = Arc::new(sender);
     let _server = start_server(config, Arc::clone(&sender));
     while let Some(message) = receiver.next().await {
