@@ -13,16 +13,14 @@ use sha2::Sha256;
 use showdown::{RoomId, SendMessage};
 use std::collections::HashSet;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::time;
 use warp::reject::Reject;
 use warp::{path, Filter, Rejection};
 
-pub fn start_server(
-    config: &'static Config,
-    sender: &'static DelayedSender,
-) -> oneshot::Sender<()> {
+pub fn start_server(config: &'static Config, sender: Arc<DelayedSender>) -> oneshot::Sender<()> {
     let (tx, rx) = oneshot::channel();
     let port = config.port;
     tokio::spawn(
@@ -35,33 +33,36 @@ pub fn start_server(
 
 fn get_route(
     config: &'static Config,
-    sender: &'static DelayedSender,
+    sender: Arc<DelayedSender>,
 ) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
     let skip_pull_requests = &*Box::leak(Box::new(Mutex::new(HashSet::new())));
     path!("github" / "callback")
         .and(warp::header::optional("X-Hub-Signature-256"))
         .and(warp::header("X-GitHub-Event"))
         .and(warp::body::bytes())
-        .and_then(move |signature, event: String, bytes: Bytes| async move {
-            info!("Got event {}", event);
-            let room_configuration = get_rooms(config, signature, &bytes)?;
-            match event.as_str() {
-                "push" => {
-                    handle_push_event(config, sender, room_configuration, json(&bytes)?).await?
+        .and_then(move |signature, event: String, bytes: Bytes| {
+            let sender = Arc::clone(&sender);
+            async move {
+                info!("Got event {}", event);
+                let room_configuration = get_rooms(config, signature, &bytes)?;
+                match event.as_str() {
+                    "push" => {
+                        handle_push_event(config, sender, room_configuration, json(&bytes)?).await?
+                    }
+                    "pull_request" => {
+                        handle_pull_request(
+                            &config.username_aliases,
+                            skip_pull_requests,
+                            sender,
+                            room_configuration.rooms,
+                            json(&bytes)?,
+                        )
+                        .await?
+                    }
+                    _ => {}
                 }
-                "pull_request" => {
-                    handle_pull_request(
-                        &config.username_aliases,
-                        skip_pull_requests,
-                        sender,
-                        room_configuration.rooms,
-                        json(&bytes)?,
-                    )
-                    .await?
-                }
-                _ => {}
+                Ok::<_, Rejection>("")
             }
-            Ok::<_, Rejection>("")
         })
 }
 
@@ -101,7 +102,7 @@ fn json<'de, T: Deserialize<'de>>(input: &'de [u8]) -> Result<T, Rejection> {
 
 async fn handle_push_event<'a>(
     config: &'static Config,
-    sender: &'static DelayedSender,
+    sender: Arc<DelayedSender>,
     room_configuration: RoomConfigurationRef<'a>,
     push_event: PushEvent<'a>,
 ) -> Result<(), Rejection> {
@@ -154,7 +155,7 @@ const IGNORE_ACTIONS: &[&str] = &[
 async fn handle_pull_request<'a>(
     username_aliases: &'static UsernameAliases,
     skip_pull_requests: &'static Mutex<HashSet<u32>>,
-    sender: &'static DelayedSender,
+    sender: Arc<DelayedSender>,
     rooms: &'a [String],
     pull_request: PullRequestEvent<'a>,
 ) -> Result<(), Rejection> {

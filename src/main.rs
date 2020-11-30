@@ -9,6 +9,7 @@ use log::info;
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, SendMessage, Stream};
 use std::error::Error;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
 use unbounded::DelayedSender;
@@ -46,8 +47,8 @@ async fn run_authenticated(
     config: Config,
 ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     let config = Box::leak(Box::new(config));
-    let sender = Box::leak(Box::new(sender));
-    let _server = start_server(config, sender);
+    let sender = Arc::new(sender);
+    let _server = start_server(config, Arc::clone(&sender));
     while let Some(message) = receiver.next().await {
         let message = message?;
         info!("Received message: {:?}", message);
