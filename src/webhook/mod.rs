@@ -35,13 +35,14 @@ fn get_route(
     config: &'static Config,
     sender: Arc<DelayedSender>,
 ) -> impl Clone + Filter<Extract = (&'static str,), Error = Rejection> {
-    let skip_pull_requests = &*Box::leak(Box::new(Mutex::new(HashSet::new())));
+    let skip_pull_requests = Arc::new(Mutex::new(HashSet::new()));
     path!("github" / "callback")
         .and(warp::header::optional("X-Hub-Signature-256"))
         .and(warp::header("X-GitHub-Event"))
         .and(warp::body::bytes())
         .and_then(move |signature, event: String, bytes: Bytes| {
             let sender = Arc::clone(&sender);
+            let skip_pull_requests = Arc::clone(&skip_pull_requests);
             async move {
                 info!("Got event {}", event);
                 let room_configuration = get_rooms(config, signature, &bytes)?;
@@ -154,7 +155,7 @@ const IGNORE_ACTIONS: &[&str] = &[
 
 async fn handle_pull_request<'a>(
     username_aliases: &'static UsernameAliases,
-    skip_pull_requests: &'static Mutex<HashSet<u32>>,
+    skip_pull_requests: Arc<Mutex<HashSet<u32>>>,
     sender: Arc<DelayedSender>,
     rooms: &'a [String],
     pull_request: PullRequestEvent<'a>,
