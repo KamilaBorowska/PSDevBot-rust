@@ -5,26 +5,34 @@ mod webhook;
 
 use config::Config;
 use futures::stream::{SplitStream, StreamExt};
-use log::info;
+use log::{error, info};
 use showdown::message::{Kind, UpdateUser};
 use showdown::{connect_to_url, SendMessage, Stream};
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::time::timeout;
+use tokio::time;
 use unbounded::DelayedSender;
 use webhook::start_server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let _ = dotenv::dotenv();
-    let config = Config::new()?;
+    let config = Box::leak(Box::new(Config::new()?));
     env_logger::init();
-    start(Box::leak(Box::new(config))).await
+    loop {
+        match start(config).await {
+            Ok(()) => info!("Got a regular disconnect"),
+            Err(e) => {
+                error!("Disconnected due to an error: {}", e);
+                time::delay_for(Duration::from_secs(10)).await;
+            }
+        }
+    }
 }
 
 async fn start(config: &'static Config) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let stream = timeout(Duration::from_secs(30), authenticate(&config)).await??;
+    let stream = time::timeout(Duration::from_secs(30), authenticate(&config)).await??;
     let (sender, receiver) = stream.split();
     run_authenticated(DelayedSender::new(sender), receiver, config).await
 }
