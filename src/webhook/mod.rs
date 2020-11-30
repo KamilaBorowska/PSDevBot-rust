@@ -2,7 +2,6 @@ mod schema;
 
 use crate::config::{Config, RoomConfigurationRef, UsernameAliases};
 use crate::unbounded::DelayedSender;
-use bytes::Bytes;
 use futures::channel::oneshot;
 use futures::FutureExt;
 use hmac::{Hmac, Mac, NewMac};
@@ -17,6 +16,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::time;
+use warp::hyper::body::Bytes;
 use warp::reject::Reject;
 use warp::{path, Filter, Rejection};
 
