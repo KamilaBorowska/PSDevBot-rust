@@ -191,7 +191,7 @@ mod test {
         let mut config = base_config();
         config.default_room_name = Some("room".into());
         let mut rooms: Vec<_> = config.all_rooms().into_iter().collect();
-        rooms.sort();
+        rooms.sort_unstable();
         assert_eq!(rooms, ["room"]);
     }
 
@@ -223,7 +223,7 @@ mod test {
             },
         );
         let mut rooms: Vec<_> = config.all_rooms().into_iter().collect();
-        rooms.sort();
+        rooms.sort_unstable();
         assert_eq!(rooms, ["a", "b", "c", "d"]);
     }
 
