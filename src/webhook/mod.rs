@@ -151,6 +151,7 @@ const IGNORE_ACTIONS: &[&str] = &[
     "labeled",
     "unlabeled",
     "converted_to_draft",
+    "review_request_removed",
 ];
 
 async fn handle_pull_request<'a>(
