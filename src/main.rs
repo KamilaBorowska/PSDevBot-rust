@@ -7,7 +7,7 @@ use config::Config;
 use futures::stream::{SplitStream, StreamExt};
 use log::{error, info};
 use showdown::message::{Kind, UpdateUser};
-use showdown::{connect_to_url, SendMessage, Stream};
+use showdown::{SendMessage, Stream};
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -38,7 +38,7 @@ async fn start(config: &'static Config) -> Result<(), Box<dyn Error + Send + Syn
 }
 
 async fn authenticate(config: &'static Config) -> Result<Stream, Box<dyn Error + Send + Sync>> {
-    let mut stream = connect_to_url(&config.server).await?;
+    let mut stream = Stream::connect_to_url(&config.server).await?;
     while let Some(message) = stream.next().await {
         if let Kind::Challenge(ch) = message?.kind() {
             ch.login_with_password(&mut stream, &config.user, &config.password)
