@@ -5,6 +5,7 @@ authors = ["Konrad Borowski <konrad@borowski.pw>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "Bot used to report GitHub changes in Pokémon Showdown chatrooms"
+repository = "https://gitlab.com/KonradBorowski/psdevbot-rust/"
 
 [dependencies]
 askama = "0.10.3"
