@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Konrad Borowski <konrad@borowski.pw>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
-description = "Bot used to report GitHub changes on Pokemon Showdown chatrooms"
+description = "Bot used to report GitHub changes in Pokémon Showdown chatrooms"
 
 [dependencies]
 askama = "0.10.3"
