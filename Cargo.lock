@@ -1021,7 +1021,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "psdevbot-rust"
+name = "psdevbot"
 version = "0.1.0"
 dependencies = [
  "askama",
