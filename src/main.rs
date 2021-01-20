@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             Ok(()) => info!("Got a regular disconnect"),
             Err(e) => {
                 error!("Disconnected due to an error: {}", e);
-                time::delay_for(Duration::from_secs(10)).await;
+                time::sleep(Duration::from_secs(10)).await;
             }
         }
     }

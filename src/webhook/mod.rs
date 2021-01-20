@@ -166,7 +166,7 @@ async fn handle_pull_request<'a>(
         && skip_pull_requests.lock().unwrap().insert(number)
     {
         tokio::spawn(async move {
-            time::delay_for(Duration::from_secs(10 * 60)).await;
+            time::sleep(Duration::from_secs(10 * 60)).await;
             skip_pull_requests.lock().unwrap().remove(&number);
         });
         for room in rooms {
