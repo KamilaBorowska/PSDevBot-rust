@@ -1229,14 +1229,13 @@ dependencies = [
 
 [[package]]
 name = "showdown"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e566142c62e6ca4e1781a85b3dee9b572fc56644f05ffe211d856e54e536538"
+checksum = "0fd2b59c988b61070808a03e849b2dd0a64fbf1e26c3cfa04cfa084f887e2bb6"
 dependencies = [
  "futures-util",
  "reqwest",
  "serde",
- "serde_derive",
  "serde_json",
  "tokio",
  "tokio-native-tls",
