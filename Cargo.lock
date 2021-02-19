@@ -1204,9 +1204,9 @@ dependencies = [
 
 [[package]]
 name = "showdown"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fd2b59c988b61070808a03e849b2dd0a64fbf1e26c3cfa04cfa084f887e2bb6"
+checksum = "2b56461a1ad0d493a06ee4195a73baf5dac1b6c80be96cfecc09f93cc495c59e"
 dependencies = [
  "futures-util",
  "reqwest",
