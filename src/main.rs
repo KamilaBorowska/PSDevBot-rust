@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 }
 
 async fn start(config: &'static Config) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let stream = time::timeout(Duration::from_secs(30), authenticate(&config)).await??;
+    let stream = time::timeout(Duration::from_secs(30), authenticate(config)).await??;
     let (sender, receiver) = stream.split();
     run_authenticated(DelayedSender::new(sender), receiver, config).await
 }
