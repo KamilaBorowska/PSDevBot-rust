@@ -17,7 +17,7 @@ use webhook::start_server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let _ = dotenv::dotenv();
+    dotenv::dotenv().ok();
     let config = Box::leak(Box::new(Config::new()?));
     env_logger::init();
     loop {
