@@ -89,8 +89,8 @@ fn verify_signature(
             .strip_prefix("sha256=")
             .ok_or_else(|| reject("Signature doesn't start with sha256="))?;
         let signature = hex::decode(signature).map_err(reject)?;
-        let mut mac =
-            Hmac::<Sha256>::new_varkey(secret.as_bytes()).expect("HMAC can take a key of any size");
+        let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
+            .expect("HMAC can take a key of any size");
         mac.update(bytes);
         mac.verify(&signature).map_err(reject)?;
     }
