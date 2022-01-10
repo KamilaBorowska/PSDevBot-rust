@@ -315,9 +315,9 @@ mod test {
     #[tokio::test]
     async fn test_push_event() {
         let commit = concat!(
-            "[<a href='https:&#x2f;&#x2f;github.com&#x2f;smogon&#x2f;pokemon-showdown'>",
+            "[<a href='https://github.com/smogon/pokemon-showdown'>",
             "<font color=FF00FF>server</font></a>] ",
-            "<a href='http:&#x2f;&#x2f;example.com'><font color=606060><kbd>0da259</kbd></font></a>\n",
+            "<a href='http://example.com'><font color=606060><kbd>0da259</kbd></font></a>\n",
             "<span title='Hello, world!'>Hello, world!</span> ",
             r#"<font color=909090 title="Konrad Borowski">(xfix)</font>"#,
         );
@@ -358,7 +358,7 @@ mod test {
                 .await
                 .to_string(),
             concat!(
-                "<a href='http:&#x2f;&#x2f;example.com'>",
+                "<a href='http://example.com'>",
                 "<font color=606060><kbd>0da259</kbd></font></a>\n",
                 "<span title='Hello, world!'>Hello, world!</span> ",
                 r#"<font color=909090 title="Konrad Borowski">(xfix)</font>"#,
@@ -390,10 +390,10 @@ mod test {
                 .to_view(&UsernameAliases::default())
                 .to_string(),
             concat!(
-                "[<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
+                "[<a href='http://example.com/'><font color=FF00FF>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
                 "color='909090'>Me</font></a> created ",
-                "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>PR#1</a>: Hello, world",
+                "<a href='http://example.com/pr/1'>PR#1</a>: Hello, world",
             ),
         );
     }
@@ -405,10 +405,10 @@ mod test {
         assert_eq!(
             sample_pull_request().to_view(&aliases).to_string(),
             concat!(
-                "[<a href='http:&#x2f;&#x2f;example.com&#x2f;'><font color=FF00FF>",
+                "[<a href='http://example.com/'><font color=FF00FF>",
                 "ExampleCom</font></a>] <a href='https://github.com/Me'><font ",
                 "color='909090'>Not me</font></a> created ",
-                "<a href='http:&#x2f;&#x2f;example.com&#x2f;pr&#x2f;1'>PR#1</a>: Hello, world",
+                "<a href='http://example.com/pr/1'>PR#1</a>: Hello, world",
             ),
         );
     }

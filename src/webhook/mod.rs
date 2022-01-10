@@ -4,7 +4,7 @@ use crate::config::{Config, RoomConfigurationRef, UsernameAliases};
 use crate::unbounded::DelayedSender;
 use futures::channel::oneshot;
 use futures::FutureExt;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use log::info;
 use schema::{InitialPayload, PullRequestEvent, PushEvent, PushEventContext};
 use serde::Deserialize;
@@ -92,7 +92,7 @@ fn verify_signature(
         let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
             .expect("HMAC can take a key of any size");
         mac.update(bytes);
-        mac.verify(&signature).map_err(reject)?;
+        mac.verify_slice(&signature).map_err(reject)?;
     }
     Ok(())
 }
