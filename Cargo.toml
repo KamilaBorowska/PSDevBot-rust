@@ -8,7 +8,7 @@ description = "Bot used to report GitHub changes in Pokémon Showdown chatrooms"
 repository = "https://gitlab.com/KonradBorowski/psdevbot-rust/"
 
 [dependencies]
-askama = { version = "0.10.3", default-features = false }
+askama = { version = "0.11.0", default-features = false }
 dotenv = "0.15.0"
 env_logger = "0.9.0"
 futures = { version = "0.3.7", default-features = false, features = [ "std" ] }
