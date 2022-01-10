@@ -26,8 +26,6 @@ pub struct PushEvent<'a> {
     #[serde(borrow)]
     commits: Vec<Commit<'a>>,
     #[serde(borrow)]
-    pusher: Pusher<'a>,
-    #[serde(borrow)]
     pub repository: Repository<'a>,
 }
 
@@ -141,12 +139,6 @@ fn format_title(message: &str, url: &str) -> String {
             format!("<a href='{}/issues/{}'>{}</a>", h(url), h(&c[1]), &c[0])
         })
         .to_string()
-}
-
-#[derive(Debug, Deserialize)]
-struct Pusher<'a> {
-    #[serde(borrow)]
-    name: Cow<'a, str>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -295,8 +287,8 @@ struct ViewSender<'a> {
 #[cfg(test)]
 mod test {
     use super::{
-        Author, Commit, PullRequest, PullRequestEvent, PushEvent, PushEventContext, Pusher,
-        Repository, Sender,
+        Author, Commit, PullRequest, PullRequestEvent, PushEvent, PushEventContext, Repository,
+        Sender,
     };
     use crate::config::UsernameAliases;
 
@@ -325,9 +317,6 @@ mod test {
             PushEvent {
                 git_ref: "refs/head/master".into(),
                 commits: vec![sample_commit(), sample_commit()],
-                pusher: Pusher {
-                    name: "Zarel".into(),
-                },
                 repository: Repository {
                     name: "pokemon-showdown".into(),
                     html_url: "https://github.com/smogon/pokemon-showdown".into(),
