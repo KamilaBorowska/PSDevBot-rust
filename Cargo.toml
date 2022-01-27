@@ -1,6 +1,6 @@
 [package]
 name = "psdevbot"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Konrad Borowski <konrad@borowski.pw>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
